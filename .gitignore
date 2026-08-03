@@ -1,0 +1,12 @@
+.DS_Store
+
+# Xcode build and user state
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# Local signing and environment files
+*.p12
+*.mobileprovision
+.env
