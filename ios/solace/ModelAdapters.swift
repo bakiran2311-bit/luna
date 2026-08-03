@@ -33,6 +33,7 @@ struct FunctionalEyeCheck: Codable, Equatable {
     var hiddenCameraBlinkRatePerMinute: Double? = nil
     var hiddenCameraBlinkRhythmVariabilityPercent: Int? = nil
     var hiddenCameraPartialClosurePercent: Int? = nil
+    var hiddenCameraBlinkIntervals: [Double]? = nil
 
     var blinkSignalMeaning: String {
         guard let rate = hiddenCameraBlinkRatePerMinute else { return "signal unavailable" }

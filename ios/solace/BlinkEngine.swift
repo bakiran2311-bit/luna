@@ -120,6 +120,15 @@ struct EyeStrainAssessment: Codable, Equatable {
 
     var scoreMeaning: String {
         guard let score else { return "The test did not collect enough stable eye data to explain a score yet." }
+        if dataStatus == "self-reported" {
+            if score >= 75 {
+                return "This is a comfort signal based only on what you selected, not a vision test. Few discomfort signals were reported in this check-in."
+            }
+            if score >= 50 {
+                return "This is a comfort signal based only on what you selected, not a vision test. Some discomfort signals were reported; use the linked break and comfort suggestions."
+            }
+            return "This is a comfort signal based only on what you selected, not a vision test. Several discomfort signals were reported; take a longer break and reduce the listed triggers."
+        }
         if score >= 75 {
             return "This is an eye-strain signal score, not visual acuity. \(score)/100 means this window showed relatively few elevated strain signals. Keep the habits that produced this result."
         }

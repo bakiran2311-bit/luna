@@ -5,10 +5,14 @@ import UIKit
 import UserNotifications
 import Vision
 
-private let reportNotice = "This pattern combines your check-in responses with the on-device function checks you completed."
+private let reportNotice = "This pattern is based on the comfort responses you chose."
+
+enum EyeSide: String {
+    case left, right
+}
 
 enum SolaceRoute {
-    case splash, auth, home, checkin, report, trends, wellness, breathing, settings
+    case splash, auth, home, checkin, report, rhythm, wellness, breathing, settings
 }
 
 @MainActor
@@ -171,8 +175,8 @@ struct ContentView: View {
                     }
                 case .report:
                     SafetySummaryView(report: store.activeAccount?.report, wellness: { route = .wellness })
-                case .trends:
-                    TrendsView(store: store)
+                case .rhythm:
+                    BlinkRhythmView(store: store)
                 case .wellness:
                     WellnessView(store: store, focusSession: focusSession) { route = .breathing }
                 case .breathing:
@@ -201,7 +205,7 @@ struct ContentView: View {
             store.addScreenFreeMinutes(focusSession.lastCompletedMinutes)
         }
         .safeAreaInset(edge: .bottom) {
-            if [.home, .report, .trends, .wellness, .settings].contains(route) {
+            if [.home, .report, .rhythm, .wellness, .settings].contains(route) {
                 SolaceNav(route: $route)
             }
         }
@@ -526,7 +530,7 @@ final class ReminderManager: ObservableObject {
 
     private func scheduleReminders() {
         center.removePendingNotificationRequests(withIdentifiers: ["solace.daily.scan", "solace.eye.break", "solace.water.break", "solace.food.break"])
-        scheduleCalendar(id: "solace.daily.scan", title: "comfort check-in", body: "How do your eyes feel today? Your optional quick eye check keeps the camera view hidden.", hour: 9)
+        scheduleCalendar(id: "solace.daily.scan", title: "comfort check-in", body: "How do your eyes feel today? Log a quick comfort check when you have a moment.", hour: 9)
         scheduleInterval(id: "solace.eye.break", title: "distance break", body: "Look away from the screen and blink naturally for 20 seconds.", seconds: 7_200)
         scheduleInterval(id: "solace.water.break", title: "water break", body: "A quick water break can support comfort during screen time.", seconds: 10_800)
         scheduleCalendar(id: "solace.food.break", title: "colorful food check", body: "Add a leafy green, orange vegetable, pepper, or citrus food today.", hour: 13)
@@ -579,7 +583,7 @@ struct HomeView: View {
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(dueText).font(.system(size: 21, weight: .medium))
-                        Text("Log how you feel, then use the optional quick eye check. Front-camera landmarks are processed on-device without showing or saving the picture.")
+                        Text("Log how your eyes feel. No camera or visual test is required.")
                             .font(.system(size: 13)).foregroundStyle(.secondary)
                         BlackButton(title: "log eye comfort", icon: "hand.tap", action: checkIn)
                     }
@@ -593,10 +597,10 @@ struct HomeView: View {
                                 .font(.system(size: 34, weight: .black, design: .monospaced))
                             Text("/100").font(.system(size: 11)).foregroundStyle(.secondary)
                         }
-                        Text(store.hasTodayEyeScore ? "Eye results 40% · water 20% · screen-free 25% · breathing 15%. Higher is better." : "Complete the eye check to unlock the overall score. Your habit inputs are already being saved.")
+                        Text(store.hasTodayEyeScore ? "Comfort signal 40% · water 20% · screen-free 25% · breathing 15%. Higher is better." : "Complete a comfort check to unlock the overall score. Your habit inputs are already being saved.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                         HStack(spacing: 8) {
-                            scoreChip("EYE", store.todayEyeScore.map(String.init) ?? "—")
+                            scoreChip("COMFORT", store.todayEyeScore.map(String.init) ?? "—")
                             scoreChip("HABITS", "\(store.todayHabitScore)")
                         }
                     }
@@ -657,7 +661,6 @@ struct SafetyCheckInView: View {
     @State private var selectedContexts: Set<String> = []
     @State private var severity = 2.0
     @State private var closeRotation = 0.0
-    @State private var showFunctionalChecks = false
 
     private let choices = [
         ("dry or gritty eyes", "drop", Color.solaceTeal),
@@ -669,16 +672,7 @@ struct SafetyCheckInView: View {
     private let contextChoices = ["long near-work block", "window or lamp glare", "dim room", "fan or dry airflow", "contacts or glasses", "short sleep"]
 
     var body: some View {
-        if showFunctionalChecks {
-            FunctionalEyeCheckView(
-                symptoms: Array(selected).sorted(),
-                contexts: Array(selectedContexts).sorted(),
-                severity: selected.isEmpty ? 0 : Int(severity),
-                back: { showFunctionalChecks = false },
-                done: done
-            )
-        } else {
-            ScrollView {
+        ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     Button {
@@ -691,11 +685,11 @@ struct SafetyCheckInView: View {
                     .rotationEffect(.degrees(closeRotation))
                     .buttonStyle(SolacePressStyle())
                     Spacer()
-                    Text("PRIVATE · CAMERA VIEW HIDDEN").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(Color.solaceTeal)
+                    Text("PRIVATE · ANSWERS ONLY").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(Color.solaceTeal)
                 }
 
                 RetroTypeSwitcher(title: "comfort check-in", phrases: ["tap what you feel", "skip what you do not", "save a truthful pattern"])
-                Text("First, select only sensations you notice right now. The next screen explains the simple quick eye check before anything starts.")
+                Text("Select only sensations you notice right now. This check uses your answers only; no camera or visual test is involved.")
                     .font(.system(size: 13)).foregroundStyle(.secondary)
 
                 ForEach(choices, id: \.0) { choice in
@@ -768,13 +762,53 @@ struct SafetyCheckInView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                BlackButton(title: "continue to function checks", icon: "rectangle.and.hand.point.up.left") {
-                    showFunctionalChecks = true
+                BlackButton(title: "save comfort check", icon: "checkmark") {
+                    saveComfortCheck()
                 }
             }
             .padding(20)
         }
-        }
+    }
+
+    private func saveComfortCheck() {
+        let symptoms = selected.sorted()
+        let contexts = selectedContexts.sorted()
+        let selectedSeverity = symptoms.isEmpty ? 0 : Int(severity)
+        let relevantContexts = contexts.filter {
+            ["long near-work block", "window or lamp glare", "dim room", "short sleep"].contains($0)
+        }.count
+        let symptomLoad = min(55, symptoms.count * 8 + selectedSeverity * 4)
+        let contextLoad = min(25, relevantContexts * 5 + max(0, contexts.count - relevantContexts) * 2)
+        let score = max(0, 100 - symptomLoad - contextLoad)
+        let label: String
+        if score >= 75 { label = "comfortable self-report" }
+        else if score >= 50 { label = "some discomfort reported" }
+        else { label = "higher discomfort reported" }
+        var signals = symptoms.map { "self-reported: \($0)" }
+        if signals.isEmpty { signals = ["no discomfort selected"] }
+        let assessment = EyeStrainAssessment(
+            score: score,
+            label: label,
+            dataStatus: "self-reported",
+            observedSeconds: 0,
+            trackingPercent: 0,
+            blinkRatePerMinute: nil,
+            prolongedClosureSeconds: 0,
+            partialClosurePercent: 0,
+            symptomCount: symptoms.count,
+            signals: signals
+        )
+        done(ScreeningReport(
+            capturedAt: Date(),
+            summary: "comfort signal " + String(score) + "/100 · " + label,
+            quality: "self-reported comfort check · no camera used",
+            interpretation: "This signal uses only the sensations and situations you selected. It is not a vision or diagnostic test.",
+            eyeStrain: assessment,
+            symptoms: symptoms,
+            contexts: contexts,
+            severity: symptoms.isEmpty ? nil : selectedSeverity,
+            functionalCheck: nil
+        ))
     }
 }
 
@@ -787,9 +821,14 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
     @Published private(set) var trackingPercent = 0
     @Published private(set) var blinkCount = 0
     @Published private(set) var blinkRatePerMinute: Double? = nil
+    @Published private(set) var blinkIntervals: [Double] = []
     @Published private(set) var blinkRhythmVariabilityPercent: Int? = nil
     @Published private(set) var partialClosurePercent: Int? = nil
     @Published private(set) var signalLoad = 0
+    @Published private(set) var coverageTarget: EyeSide? = nil
+    @Published private(set) var coveragePercent = 0
+    @Published private(set) var coverageComplete = false
+    @Published private(set) var coverageReady = false
     @Published private(set) var status = "camera ready"
 
     private let session = AVCaptureSession()
@@ -800,6 +839,11 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
     private var analyzedFrames = 0
     private var trackedFrames = 0
     private var finishedState = false
+    private var coverageMode = false
+    private var coverageStartedAt: Date?
+    private var coverageAnalyzedFrames = 0
+    private var coveragePassingFrames = 0
+    private var coverageConsecutivePassingFrames = 0
     private var engine = BlinkEngine()
     private var monitor = EyeStrainSignalMonitor()
     private let targetSeconds = 15
@@ -822,8 +866,26 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
     }
 
     func stop() {
+        finishedState = true
         sessionQueue.async { [weak self] in self?.session.stopRunning() }
         DispatchQueue.main.async { [weak self] in self?.isRunning = false }
+    }
+
+    func startCoverageVerification(target: EyeSide) {
+        authorization = AVCaptureDevice.authorizationStatus(for: .video)
+        if authorization == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    self?.authorization = granted ? .authorized : .denied
+                    if granted { self?.startCoverageAuthorized(target: target) }
+                    else { self?.status = "camera permission is off" }
+                }
+            }
+        } else if authorization == .authorized {
+            startCoverageAuthorized(target: target)
+        } else {
+            status = "camera permission is off"
+        }
     }
 
     private func startAuthorized() {
@@ -856,9 +918,45 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
         trackingPercent = 0
         blinkCount = 0
         blinkRatePerMinute = nil
+        blinkIntervals = []
         blinkRhythmVariabilityPercent = nil
         partialClosurePercent = nil
         signalLoad = 0
+        coverageTarget = nil
+        coveragePercent = 0
+        coverageComplete = false
+        coverageReady = false
+        coverageMode = false
+        coverageStartedAt = nil
+        coverageAnalyzedFrames = 0
+        coveragePassingFrames = 0
+        coverageConsecutivePassingFrames = 0
+    }
+
+    private func startCoverageAuthorized(target: EyeSide) {
+        finishedState = false
+        coverageMode = true
+        coverageTarget = target
+        coveragePercent = 0
+        coverageComplete = false
+        coverageReady = false
+        coverageStartedAt = nil
+        coverageAnalyzedFrames = 0
+        coveragePassingFrames = 0
+        coverageConsecutivePassingFrames = 0
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            if !self.configured { self.configureSession() }
+            guard self.configured else {
+                DispatchQueue.main.async { self.status = "front camera unavailable" }
+                return
+            }
+            self.session.startRunning()
+            DispatchQueue.main.async {
+                self.isRunning = true
+                self.status = "checking one-eye coverage · no preview"
+            }
+        }
     }
 
     private func configureSession() {
@@ -892,6 +990,50 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
         let left = leftPoints.flatMap(EyeLandmarkNormalizer.sixPointContour)
         let right = rightPoints.flatMap(EyeLandmarkNormalizer.sixPointContour)
         let visible = left != nil && right != nil
+
+        if coverageMode {
+            if coverageStartedAt == nil { coverageStartedAt = now }
+            coverageAnalyzedFrames += 1
+            let targetIsCovered: Bool
+            let remainingEyeVisible: Bool
+            switch coverageTarget {
+            case .left:
+                targetIsCovered = left == nil
+                remainingEyeVisible = right != nil
+            case .right:
+                targetIsCovered = right == nil
+                remainingEyeVisible = left != nil
+            case .none:
+                targetIsCovered = false
+                remainingEyeVisible = false
+            }
+            let passing = targetIsCovered && remainingEyeVisible
+            if passing {
+                coveragePassingFrames += 1
+                coverageConsecutivePassingFrames += 1
+            } else {
+                coverageConsecutivePassingFrames = 0
+            }
+            let percent = coverageAnalyzedFrames == 0 ? 0 : Int((Double(coveragePassingFrames) / Double(coverageAnalyzedFrames) * 100).rounded())
+            let elapsed = now.timeIntervalSince(coverageStartedAt ?? now)
+            // Advance as soon as the requested eye disappears for a few
+            // consecutive frames while the other eye remains visible. Three
+            // frames keeps a normal blink or a noisy landmark frame from
+            // advancing the check, without making the user wait a full
+            // verification window.
+            let ready = passing && coverageConsecutivePassingFrames >= 3
+            DispatchQueue.main.async { [weak self] in
+                self?.coveragePercent = percent
+                self?.status = ready ? "eye covered · moving to the eye check" : "cover the requested eye · \(percent)% signal"
+            }
+            if ready {
+                finishCoverage(confirmed: true)
+            } else if elapsed >= 4.0 {
+                finishCoverage()
+            }
+            return
+        }
+
         if visible { trackedFrames += 1 }
         let update = engine.process(left: left, right: right, timestamp: timestamp)
         monitor.ingest(update, timestamp: timestamp)
@@ -917,6 +1059,7 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
             guard let self else { return }
             self.signalLoad = load
             self.blinkRatePerMinute = assessment.blinkRatePerMinute
+            self.blinkIntervals = zip(self.monitor.blinkTimestamps.dropFirst(), self.monitor.blinkTimestamps).map { max(0, $0 - $1) }
             self.blinkRhythmVariabilityPercent = assessment.blinkRhythmVariabilityPercent
             self.partialClosurePercent = assessment.partialClosurePercent
             self.isRunning = false
@@ -924,10 +1067,25 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
             self.status = self.trackingPercent >= 65 ? "hidden eye observation complete" : "limited eye tracking · other tasks still count"
         }
     }
+
+    private func finishCoverage(confirmed: Bool = false) {
+        guard !finishedState else { return }
+        finishedState = true
+        sessionQueue.async { [weak self] in self?.session.stopRunning() }
+        let percent = coverageAnalyzedFrames == 0 ? 0 : Int((Double(coveragePassingFrames) / Double(coverageAnalyzedFrames) * 100).rounded())
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.coveragePercent = percent
+            self.coverageReady = confirmed || percent >= 65
+            self.coverageComplete = true
+            self.isRunning = false
+            self.status = self.coverageReady ? "coverage likely confirmed" : "coverage not confirmed · continue manually"
+        }
+    }
 }
 
 private enum FunctionalCheckStage: String {
-    case intro, camera, acuityLeft, betweenEyes, acuityRight, contrast, search, complete
+    case intro, camera, coverageLeft, acuityLeft, betweenEyes, coverageRight, acuityRight, contrast, search, complete
 }
 
 struct FunctionalEyeCheckView: View {
@@ -982,6 +1140,7 @@ struct FunctionalEyeCheckView: View {
                 switch stage {
                 case .intro: intro
                 case .camera: cameraCheck
+                case .coverageLeft, .coverageRight: coverageCheck
                 case .acuityLeft, .acuityRight: acuityCheck
                 case .betweenEyes: betweenEyes
                 case .contrast: contrastCheck
@@ -1051,9 +1210,58 @@ struct FunctionalEyeCheckView: View {
                 }
             } else if camera.isComplete {
                 BlackButton(title: "continue to digit check", icon: "arrow.right") {
-                    resetClarity(); stage = .acuityLeft
+                    camera.startCoverageVerification(target: .right)
+                    stage = .coverageLeft
                 }
             }
+        }
+    }
+
+    private var coverageCheck: some View {
+        let coveredSide = camera.coverageTarget ?? (stage == .coverageLeft ? .right : .left)
+        let testedSide: EyeSide = coveredSide == .right ? .left : .right
+        let canContinue = camera.coverageReady || camera.coverageComplete || camera.authorization == .denied || camera.authorization == .restricted
+        return VStack(alignment: .leading, spacing: 16) {
+            RetroTypeSwitcher(title: "\(testedSide.rawValue) eye setup", phrases: ["cover \(coveredSide.rawValue)", "hidden camera check", "no preview"])
+            Text("Cover your \(coveredSide.rawValue.uppercased()) eye without pressing it. Solace checks that the \(testedSide.rawValue) eye remains visible while the covered side drops out of the landmark signal.")
+                .font(.system(size: 13)).foregroundStyle(.secondary)
+            VStack(spacing: 12) {
+                Image(systemName: camera.coverageReady ? "checkmark.shield.fill" : "eye.slash")
+                    .font(.system(size: 46, weight: .black))
+                    .foregroundStyle(camera.coverageReady ? Color.solaceSafe : Color.solaceAlert)
+                Text(camera.status.uppercased())
+                    .font(.system(size: 11, weight: .black, design: .monospaced))
+                    .multilineTextAlignment(.center)
+                RetroProgressBar(value: Double(camera.coveragePercent), total: 100, color: camera.coverageReady ? .solaceSafe : .solaceBlue)
+                Text("COVERAGE SIGNAL \(camera.coveragePercent)%")
+                    .font(.system(size: 10, weight: .black, design: .monospaced))
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity)
+            .background(Color.solacePaper)
+            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
+            if canContinue {
+                BlackButton(title: camera.coverageReady ? "continue to \(testedSide.rawValue) eye" : "continue with manual cover", icon: "arrow.right") {
+                    advanceFromCoverage()
+                }
+            } else {
+                Text("Hold still for a moment while the hidden camera checks the cover.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+        }
+        .onChange(of: camera.coverageReady) { _, ready in
+            if ready { advanceFromCoverage() }
+        }
+    }
+
+    private func advanceFromCoverage() {
+        guard stage == .coverageLeft || stage == .coverageRight else { return }
+        let coveredSide = camera.coverageTarget ?? (stage == .coverageLeft ? .right : .left)
+        let testedSide: EyeSide = coveredSide == .right ? .left : .right
+        camera.stop()
+        resetClarity()
+        withAnimation(.easeInOut(duration: 0.22)) {
+            stage = testedSide == .left ? .acuityLeft : .acuityRight
         }
     }
 
@@ -1088,8 +1296,8 @@ struct FunctionalEyeCheckView: View {
             Text("Now cover your LEFT eye without pressing it.")
                 .font(.system(size: 15, weight: .bold, design: .monospaced))
             BlackButton(title: "start right eye", icon: "arrow.right") {
-                resetClarity()
-                stage = .acuityRight
+                camera.startCoverageVerification(target: .left)
+                stage = .coverageRight
             }
         }
     }
@@ -1330,7 +1538,8 @@ struct FunctionalEyeCheckView: View {
             hiddenCameraSignalLoad: camera.isComplete ? camera.signalLoad : nil,
             hiddenCameraBlinkRatePerMinute: camera.isComplete ? camera.blinkRatePerMinute : nil,
             hiddenCameraBlinkRhythmVariabilityPercent: camera.isComplete ? camera.blinkRhythmVariabilityPercent : nil,
-            hiddenCameraPartialClosurePercent: camera.isComplete ? camera.partialClosurePercent : nil
+            hiddenCameraPartialClosurePercent: camera.isComplete ? camera.partialClosurePercent : nil,
+            hiddenCameraBlinkIntervals: camera.isComplete ? camera.blinkIntervals : nil
         )
     }
 
@@ -1440,6 +1649,22 @@ struct SafetySummaryView: View {
                             Text("CLARITY · L \(check.leftClarityLine) / R \(check.rightClarityLine)")
                                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                             Text("Clarity is kept outside the strain calculation.").font(.system(size: 10)).foregroundStyle(.secondary)
+                        }
+                    }
+                } else if let estimate = report?.eyeStrain {
+                    Card {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text("COMFORT SIGNAL").font(.system(size: 10, weight: .black, design: .monospaced))
+                                Spacer()
+                                Text(String(estimate.score ?? 0) + "/100")
+                                    .font(.system(size: 25, weight: .black, design: .monospaced))
+                            }
+                            Text(estimate.label.uppercased())
+                                .font(.system(size: 10, weight: .black, design: .monospaced))
+                                .foregroundStyle(Color.solaceBlue)
+                            Text(estimate.scoreMeaning)
+                                .font(.system(size: 12)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -2294,7 +2519,6 @@ struct WellnessView: View {
     @ObservedObject var store: AccountStore
     @ObservedObject var focusSession: FocusSessionManager
     let breathing: () -> Void
-    @State private var cuisineSearch = ""
     @State private var selectedCuisine = ""
     @State private var selectedDish: DishIdea?
     @State private var selectedExercise: WellnessExercise?
@@ -2304,7 +2528,7 @@ struct WellnessView: View {
     // renamed copy of the same fallback dish.
     private static let allCuisines = ["Indian", "Japanese", "Mexican"]
 
-    private var dishes: [DishIdea] { dishIdeas(for: selectedCuisine.isEmpty ? cuisineSearch : selectedCuisine) }
+    private var dishes: [DishIdea] { dishIdeas(for: selectedCuisine) }
 
     var body: some View {
         ScrollView {
@@ -2339,15 +2563,44 @@ struct WellnessView: View {
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("food ideas with vitamins A & C", systemImage: "leaf").font(.system(size: 17, weight: .medium))
-                        GooeyInput(text: $cuisineSearch, placeholder: "search cuisines")
-                        let hasCuisine = Self.allCuisines.contains { $0.caseInsensitiveCompare(cuisineSearch.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame }
-                        BlackButton(title: selectedCuisine.isEmpty ? "use this cuisine" : "change cuisine", icon: "checkmark") {
-                            selectedCuisine = cuisineSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+                        Menu {
+                            ForEach(Self.allCuisines, id: \.self) { cuisine in
+                                Button {
+                                    // Keep the selection as the single source of
+                                    // truth so every menu tap refreshes the
+                                    // recipe list, including after reopening it.
+                                    selectedCuisine = cuisine
+                                    selectedDish = nil
+                                } label: {
+                                    HStack {
+                                        Text(cuisine)
+                                        if selectedCuisine == cuisine {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(selectedCuisine.isEmpty ? "choose a cuisine" : selectedCuisine)
+                                    .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(Color.solaceInk)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 12, weight: .black))
+                                    .foregroundStyle(Color.solaceBlue)
+                            }
+                            .padding(.horizontal, 14)
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .background(Color.solacePaper)
+                            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
                         }
-                        .disabled(!hasCuisine)
-                        Text("Choose a cuisine for vitamin A and C food ideas.").font(.system(size: 12)).foregroundStyle(.secondary)
-                        if !selectedCuisine.isEmpty && dishes.isEmpty {
-                            Text("Choose one of the three curated cuisines to see dishes.").font(.system(size: 13)).foregroundStyle(.secondary)
+                        .buttonStyle(SolacePressStyle())
+                        Text("Choose a cuisine to see dishes selected for vitamin A and C foods.")
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                        if selectedCuisine.isEmpty {
+                            Text("Open the menu to choose Indian, Japanese, or Mexican ideas.")
+                                .font(.system(size: 13)).foregroundStyle(.secondary)
                         }
                         ForEach(dishes) { dish in
                             Button { selectedDish = dish } label: {
@@ -3119,74 +3372,65 @@ struct CaptureView: View {
 }
 #endif
 
-// MARK: - Trends and settings
+// MARK: - Blink rhythm and settings
 
-struct TrendsView: View {
+struct BlinkRhythmView: View {
     @ObservedObject var store: AccountStore
 
-    private var history: [ScreeningReport] {
+    private var latest: ScreeningReport? {
         let saved = store.activeAccount?.reportHistory ?? []
-        if saved.isEmpty, let report = store.activeAccount?.report { return [report] }
-        return saved.sorted { $0.capturedAt < $1.capturedAt }
+        return (saved + (store.activeAccount?.report.map { [$0] } ?? []))
+            .max { $0.capturedAt < $1.capturedAt }
     }
 
-    private var burdens: [Int] {
-        history.map { report in
-            report.functionalCheck?.strainLoad ?? min(100, (report.symptoms?.count ?? 0) * 20)
-        }
+    private var check: FunctionalEyeCheck? { latest?.functionalCheck }
+    private var intervals: [Double] { check?.hiddenCameraBlinkIntervals ?? [] }
+    private var rateText: String {
+        guard let rate = check?.hiddenCameraBlinkRatePerMinute else { return "rate unavailable" }
+        return String(format: "%.1f blinks/min", rate)
     }
-
-    private var direction: String {
-        guard burdens.count >= 2, let previous = burdens.dropLast().last, let latest = burdens.last else {
-            return "Two comfort logs reveal a direction."
-        }
-        if latest < previous { return "improving · lower estimated strain load" }
-        if latest > previous { return "worsening · higher estimated strain load" }
-        return "stable · estimated strain load is unchanged"
+    private var averageGapText: String {
+        guard !intervals.isEmpty else { return "—" }
+        return String(format: "%.2f s", intervals.reduce(0, +) / Double(intervals.count))
     }
-
-    private var changes: [String] {
-        guard history.count >= 2 else { return ["Complete another quick eye check under similar conditions to reveal a trend."] }
-        let previous = Set(history[history.count - 2].symptoms ?? [])
-        let latest = Set(history[history.count - 1].symptoms ?? [])
-        var values: [String] = []
-        for resolved in previous.subtracting(latest).sorted() { values.append("resolved since last log · \(resolved)") }
-        for added in latest.subtracting(previous).sorted() { values.append("new since last log · \(added)") }
-        return values.isEmpty ? ["Your selected comfort pattern did not change."] : values
+    private var rangeText: String {
+        guard let shortest = intervals.min(), let longest = intervals.max() else { return "—" }
+        return String(format: "%.2f–%.2f s", shortest, longest)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                RetroTypeSwitcher(title: "comfort trend", phrases: ["reported, not predicted", "less or more discomfort", "one dot per check-in"])
-                Text(direction).font(.system(size: 16, weight: .semibold, design: .monospaced)).foregroundStyle(Color.solaceTeal)
-                if burdens.count >= 2 {
-                    TrendLineGraph(scores: burdens, maximum: 100).frame(height: 180)
-                    Text("Each numbered marker is one check-in. New checks use the combined strain load; older checks fall back to symptom count. Lower does not mean better eyesight.").font(.system(size: 12)).foregroundStyle(.secondary)
-                } else {
-                    Text("Your pattern begins after the second comfort log.").font(.system(size: 13)).foregroundStyle(.secondary)
-                }
-                Card {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("what changed").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.solaceCoral)
-                        ForEach(changes, id: \.self) { change in
-                            Label(change, systemImage: "arrow.right").font(.system(size: 13))
-                        }
-                    }
-                }
-                if !history.isEmpty {
+                RetroTypeSwitcher(title: "blink rhythm", phrases: ["latest session", "gap length", "pattern only"])
+                if let latest, let check {
                     Card {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("check-in index").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.solacePurple)
-                            ForEach(Array(history.enumerated()), id: \.offset) { index, report in
-                                HStack {
-                                    Text("\(index + 1)").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(.white)
-                                        .frame(width: 28, height: 28).background(Color.solacePurple).clipShape(Rectangle())
-                                    Text(report.capturedAt.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 13))
-                                    Spacer()
-                                    Text("\(report.symptoms?.count ?? 0) reported").font(.system(size: 11)).foregroundStyle(.secondary)
-                                }
+                            Text("LATEST RECORDED RHYTHM").font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                            Text(latest.capturedAt.formatted(date: .abbreviated, time: .shortened))
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            HStack(spacing: 8) {
+                                rhythmMetric("RATE", rateText)
+                                rhythmMetric("AVERAGE GAP", averageGapText)
+                                rhythmMetric("RANGE", rangeText)
                             }
+                            Text("Each bar is one gap between detected blinks. Taller means more time passed before the next blink.")
+                                .font(.system(size: 12)).foregroundStyle(.secondary)
+                            if intervals.isEmpty {
+                                Text("Not enough detected blinks to show spacing yet.")
+                                    .font(.system(size: 13, weight: .medium, design: .monospaced)).foregroundStyle(Color.solaceBrown)
+                            } else {
+                                BlinkSpacingChart(intervals: intervals).frame(height: 174)
+                            }
+                            Text("Observed blink rhythm: \(check.blinkSignalMeaning). This screen describes the latest signal and does not change scoring.")
+                                .font(.system(size: 11)).foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    Card {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("NO BLINK TIMING YET").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                            Text("No blink timing is saved yet. A recorded blink session will appear here.")
+                                .font(.system(size: 14)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -3194,38 +3438,64 @@ struct TrendsView: View {
             .padding(20)
         }
     }
+
+    private func rhythmMetric(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.system(size: 8, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+            Text(value).font(.system(size: 12, weight: .bold, design: .monospaced)).lineLimit(1, reservesSpace: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(Color.solaceSignal.opacity(0.22))
+        .overlay(Rectangle().stroke(Color.solaceInk.opacity(0.18), lineWidth: 1))
+    }
 }
 
-struct TrendLineGraph: View {
-    let scores: [Int]
-    var maximum = 100
+struct BlinkSpacingChart: View {
+    let intervals: [Double]
+
     var body: some View {
-        GeometryReader { proxy in
-            let minScore = CGFloat(0)
-            let maxScore = CGFloat(max(1, maximum))
-            let range = maxScore
-            ZStack {
-                Path { path in
-                    for (index, score) in scores.enumerated() {
-                        let x = scores.count == 1 ? proxy.size.width / 2 : 16 + (proxy.size.width - 32) * CGFloat(index) / CGFloat(scores.count - 1)
-                        let y = proxy.size.height * (1 - (CGFloat(score) - minScore) / range)
-                        if index == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+        let visibleIntervals = Array(intervals.suffix(10))
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text("GAP LENGTH · SECONDS").font(.system(size: 9, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                Spacer()
+                Text("LAST \(visibleIntervals.count)").font(.system(size: 9, weight: .black, design: .monospaced)).foregroundStyle(.secondary)
+            }
+            GeometryReader { proxy in
+                let maximum = max(1.0, visibleIntervals.max() ?? 1.0)
+                ZStack(alignment: .bottomLeading) {
+                    VStack(spacing: 0) {
+                        Rectangle().fill(Color.solaceInk.opacity(0.08)).frame(height: 1)
+                        Spacer()
+                        Rectangle().fill(Color.solaceInk.opacity(0.08)).frame(height: 1)
+                        Spacer()
+                        Rectangle().fill(Color.solaceInk.opacity(0.20)).frame(height: 1)
                     }
-                }
-                .stroke(Color.solaceInk, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                ForEach(Array(scores.enumerated()), id: \.offset) { index, score in
-                    let x = scores.count == 1 ? proxy.size.width / 2 : 16 + (proxy.size.width - 32) * CGFloat(index) / CGFloat(scores.count - 1)
-                    let y = proxy.size.height * (1 - (CGFloat(score) - minScore) / range)
-                    ZStack {
-                        Rectangle().fill(index == scores.count - 1 ? Color.solaceAlert : Color.solaceBlue)
-                        Text("\(index + 1)").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(.white)
+                    HStack(alignment: .bottom, spacing: 5) {
+                        ForEach(Array(visibleIntervals.enumerated()), id: \.offset) { index, interval in
+                            VStack(spacing: 4) {
+                                Spacer(minLength: 0)
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(index.isMultiple(of: 2) ? Color.solaceBlue : Color.solaceLavender)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: max(12, (proxy.size.height - 22) * CGFloat(interval / maximum)))
+                                Text("\(index + 1)")
+                                    .font(.system(size: 8, weight: .black, design: .monospaced))
+                                    .foregroundStyle(Color.solaceInk.opacity(0.7))
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
-                    .frame(width: 26, height: 26)
-                    .position(x: x, y: y)
-                    .transition(.scale.combined(with: .opacity))
+                    .padding(.horizontal, 8)
                 }
             }
+            .frame(height: 132)
         }
+        .padding(10)
+        .background(Color.solacePaper)
+        .overlay(Rectangle().stroke(Color.solaceInk.opacity(0.30), lineWidth: 1))
+        .animation(.easeOut(duration: 0.25), value: visibleIntervals)
     }
 }
 
@@ -3576,7 +3846,7 @@ struct SolaceNav: View {
         HStack(spacing: 3) {
             NavButton(title: "home", icon: "house", accent: .solaceBeige, active: route == .home) { route = .home }
             NavButton(title: "check-in", icon: "hand.tap", accent: .solaceCoral, active: route == .checkin) { route = .checkin }
-            NavButton(title: "trends", icon: "chart.xyaxis.line", accent: .solaceLavender, active: route == .trends) { route = .trends }
+            NavButton(title: "blink rhythm", icon: "waveform.path.ecg", accent: .solaceLavender, active: route == .rhythm) { route = .rhythm }
             NavButton(title: "improve", icon: "sparkles", accent: .solaceTeal, active: route == .wellness) { route = .wellness }
             NavButton(title: "settings", icon: "gearshape", accent: .solacePeach, active: route == .settings) { route = .settings }
         }
@@ -3614,19 +3884,19 @@ struct NavButton: View {
 }
 
 extension Color {
-    static let solaceBackground = Color(red: 0.93, green: 0.91, blue: 0.82)
-    static let solacePaper = Color(red: 0.98, green: 0.97, blue: 0.90)
-    static let solaceInk = Color(red: 0.06, green: 0.09, blue: 0.12)
-    static let solaceSignal = Color(red: 0.98, green: 0.79, blue: 0.12)
-    static let solaceSafe = Color(red: 0.13, green: 0.65, blue: 0.34)
-    static let solaceAlert = Color(red: 0.90, green: 0.24, blue: 0.12)
-    static let solaceBlue = Color(red: 0.05, green: 0.31, blue: 0.79)
-    static let solaceBeige = solaceSignal
-    static let solaceBrown = Color(red: 0.27, green: 0.23, blue: 0.17)
-    static let solaceClay = solaceAlert
-    static let solaceLavender = Color(red: 0.61, green: 0.69, blue: 0.96)
-    static let solacePurple = solaceBlue
-    static let solacePeach = Color(red: 0.98, green: 0.56, blue: 0.16)
-    static let solaceCoral = solaceAlert
-    static let solaceTeal = Color(red: 0.04, green: 0.47, blue: 0.42)
+    static let solaceBackground = Color(red: 0.975, green: 0.948, blue: 0.885)
+    static let solacePaper = Color(red: 0.995, green: 0.982, blue: 0.944)
+    static let solaceInk = Color(red: 0.08, green: 0.14, blue: 0.21)
+    static let solaceSignal = Color(red: 0.72, green: 0.88, blue: 0.96)
+    static let solaceSafe = Color(red: 0.61, green: 0.84, blue: 0.76)
+    static let solaceAlert = Color(red: 0.91, green: 0.58, blue: 0.59)
+    static let solaceBlue = Color(red: 0.30, green: 0.60, blue: 0.79)
+    static let solaceBeige = Color(red: 0.95, green: 0.82, blue: 0.68)
+    static let solaceBrown = Color(red: 0.30, green: 0.25, blue: 0.23)
+    static let solaceClay = Color(red: 0.86, green: 0.66, blue: 0.61)
+    static let solaceLavender = Color(red: 0.78, green: 0.73, blue: 0.91)
+    static let solacePurple = Color(red: 0.48, green: 0.42, blue: 0.70)
+    static let solacePeach = Color(red: 0.96, green: 0.76, blue: 0.61)
+    static let solaceCoral = Color(red: 0.91, green: 0.58, blue: 0.59)
+    static let solaceTeal = Color(red: 0.38, green: 0.72, blue: 0.70)
 }
