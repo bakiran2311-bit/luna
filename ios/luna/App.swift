@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import UserNotifications
 
-final class SolaceAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+final class LunaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         return true
@@ -14,7 +14,7 @@ final class SolaceAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
 }
 
 @main
-struct SolaceApp: App {
-    @UIApplicationDelegateAdaptor(SolaceAppDelegate.self) private var appDelegate
+struct LunaApp: App {
+    @UIApplicationDelegateAdaptor(LunaAppDelegate.self) private var appDelegate
     var body: some Scene { WindowGroup { ContentView() } }
 }

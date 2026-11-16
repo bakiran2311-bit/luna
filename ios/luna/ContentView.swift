@@ -5,13 +5,13 @@ import UIKit
 import UserNotifications
 import Vision
 
-private let reportNotice = "This pattern is based on the comfort responses you chose."
+private let reportNotice = "This pattern combines your check-in responses with the on-device function checks you completed."
 
 enum EyeSide: String {
     case left, right
 }
 
-enum SolaceRoute {
+enum LunaRoute {
     case splash, auth, home, checkin, report, rhythm, wellness, breathing, settings
 }
 
@@ -25,10 +25,10 @@ final class FocusSessionManager: ObservableObject {
     @Published private(set) var completionToken = UUID()
 
     private let defaults = UserDefaults.standard
-    private let armedKey = "solace.focus.armed"
-    private let lockedKey = "solace.focus.locked"
-    private let plannedStartKey = "solace.focus.plannedStart"
-    private let originalBrightnessKey = "solace.focus.originalBrightness"
+    private let armedKey = "luna.focus.armed"
+    private let lockedKey = "luna.focus.locked"
+    private let plannedStartKey = "luna.focus.plannedStart"
+    private let originalBrightnessKey = "luna.focus.originalBrightness"
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
 
@@ -60,7 +60,7 @@ final class FocusSessionManager: ObservableObject {
         let screen = activeScreen()
         defaults.set(Double(screen.brightness), forKey: originalBrightnessKey)
         screen.brightness = 0.34
-        defaults.set(true, forKey: "solace.warmFocusActive")
+        defaults.set(true, forKey: "luna.warmFocusActive")
         defaults.set(true, forKey: armedKey)
         defaults.set(false, forKey: lockedKey)
         defaults.set(Date().addingTimeInterval(5).timeIntervalSince1970, forKey: plannedStartKey)
@@ -98,7 +98,7 @@ final class FocusSessionManager: ObservableObject {
         timer = nil
         defaults.set(false, forKey: armedKey)
         defaults.set(false, forKey: lockedKey)
-        defaults.set(false, forKey: "solace.warmFocusActive")
+        defaults.set(false, forKey: "luna.warmFocusActive")
         activeScreen().brightness = CGFloat(defaults.double(forKey: originalBrightnessKey))
         completionToken = UUID()
         sendPausedNotification(reason: reason, seconds: seconds)
@@ -134,7 +134,7 @@ final class FocusSessionManager: ObservableObject {
         content.title = "focus timer paused"
         content.body = "\(reason.capitalized) · \(time(seconds)) screen-free recorded."
         content.sound = .default
-        let request = UNNotificationRequest(identifier: "solace.focus.paused.\(UUID().uuidString)", content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false))
+        let request = UNNotificationRequest(identifier: "luna.focus.paused.\(UUID().uuidString)", content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false))
         UNUserNotificationCenter.current().add(request)
     }
 
@@ -150,10 +150,10 @@ final class FocusSessionManager: ObservableObject {
 struct ContentView: View {
     @StateObject private var store = AccountStore()
     @StateObject private var focusSession = FocusSessionManager()
-    @State private var route: SolaceRoute = .splash
+    @State private var route: LunaRoute = .splash
     @State private var contrast = false
-    @AppStorage("solace.fontStyle") private var fontStyle = SolaceFontStyle.mono.rawValue
-    @AppStorage("solace.warmFocusActive") private var warmFocusActive = false
+    @AppStorage("luna.fontStyle") private var fontStyle = LunaFontStyle.mono.rawValue
+    @AppStorage("luna.warmFocusActive") private var warmFocusActive = false
 
     var body: some View {
         ZStack {
@@ -199,14 +199,14 @@ struct ContentView: View {
         }
         .preferredColorScheme(.light)
         .environment(\.sizeCategory, .large)
-        .environment(\.font, SolaceFontStyle(rawValue: fontStyle)?.baseFont ?? SolaceFontStyle.mono.baseFont)
+        .environment(\.font, LunaFontStyle(rawValue: fontStyle)?.baseFont ?? LunaFontStyle.mono.baseFont)
         .animation(.snappy(duration: 0.24), value: routeKey)
         .onChange(of: focusSession.completionToken) { _, _ in
             store.addScreenFreeMinutes(focusSession.lastCompletedMinutes)
         }
         .safeAreaInset(edge: .bottom) {
             if [.home, .report, .rhythm, .wellness, .settings].contains(route) {
-                SolaceNav(route: $route)
+                LunaNav(route: $route)
             }
         }
     }
@@ -224,42 +224,42 @@ struct SplashView: View {
             RetroGridBackground().ignoresSafeArea()
             VStack(spacing: 18) {
                 HStack {
-                    Text("SOLACE SAFETY SYSTEM")
+                    Text("LUNA SAFETY SYSTEM")
                     Spacer()
                     Text("v2.0")
                 }
                 .font(.system(size: 11, weight: .black, design: .monospaced))
                 .padding(.horizontal, 10)
                 .frame(height: 30)
-                .foregroundStyle(Color.solacePaper)
-                .background(Color.solaceInk)
+                .foregroundStyle(Color.lunaPaper)
+                .background(Color.lunaInk)
 
                 VStack(spacing: 14) {
                     Image(systemName: "shield.checkered")
                         .font(.system(size: 58, weight: .black))
-                        .foregroundStyle(Color.solaceInk)
+                        .foregroundStyle(Color.lunaInk)
                         .frame(width: 126, height: 112)
-                        .background(Color.solaceSignal)
-                        .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
+                        .background(Color.lunaSignal)
+                        .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
                         .offset(x: -3, y: -3)
-                        .background(Rectangle().fill(Color.solaceInk).offset(x: 6, y: 6))
-                    Text("SOLACE")
+                        .background(Rectangle().fill(Color.lunaInk).offset(x: 6, y: 6))
+                    Text("LUNA")
                         .font(.system(size: 40, weight: .black, design: .monospaced))
                         .tracking(-2)
                     EncryptedTextReveal(text: "EYE SAFETY DESK // READY")
                         .font(.system(size: 12, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color.solaceBlue)
+                        .foregroundStyle(Color.lunaBlue)
                     HStack(spacing: 7) {
-                        Rectangle().fill(Color.solaceSafe).frame(width: 10, height: 10)
+                        Rectangle().fill(Color.lunaSafe).frame(width: 10, height: 10)
                         Text("LOCAL DATA ONLINE")
                     }
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
-                .background(Color.solacePaper)
-                .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
-                .background(Rectangle().fill(Color.solaceInk).offset(x: 7, y: 7))
+                .background(Color.lunaPaper)
+                .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
+                .background(Rectangle().fill(Color.lunaInk).offset(x: 7, y: 7))
 
                 BlackButton(title: "ENTER SYSTEM", icon: "arrow.right") { enter() }
             }
@@ -310,7 +310,7 @@ struct EncryptedTextReveal: View {
 
 struct LiquidEtherRing: View {
     let isActive: Bool
-    private let colors: [Color] = [.solaceInk, .solaceBrown, .solaceClay, .solaceInk]
+    private let colors: [Color] = [.lunaInk, .lunaBrown, .lunaClay, .lunaInk]
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
@@ -423,7 +423,7 @@ struct AuthView: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
         }
-        .alert("solace", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
+        .alert("luna", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
             Button("ok") { alertMessage = nil }
         } message: {
             Text(alertMessage ?? "")
@@ -449,7 +449,7 @@ struct AuthView: View {
                 alertMessage = "An account already exists for this email. Switch to sign in."
                 return
             }
-            let account = SolaceAccount(email: cleanEmail, name: name, provider: "email", passwordDigest: AccountStore.digest(password), verified: true, report: nil, schedule: nil)
+            let account = LunaAccount(email: cleanEmail, name: name, provider: "email", passwordDigest: AccountStore.digest(password), verified: true, report: nil, schedule: nil)
             store.activate(account)
             // Keep the account and its empty data, then return to the sign-in
             // form so the next entry is an explicit login rather than an
@@ -473,10 +473,10 @@ struct AuthModeButton: View {
             .foregroundStyle(active ? .white : .secondary)
             .frame(maxWidth: .infinity)
             .frame(height: 42)
-            .background(active ? Color.solaceInk : .clear)
+            .background(active ? Color.lunaInk : .clear)
             .clipShape(Rectangle())
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: active ? 0 : 1))
-            .buttonStyle(SolacePressStyle())
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: active ? 0 : 1))
+            .buttonStyle(LunaPressStyle())
     }
 }
 
@@ -489,7 +489,7 @@ struct PasswordMeter: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
                 ForEach(0..<4, id: \.self) { index in
-                    Rectangle().fill(index < score ? (score == 4 ? Color.solaceSafe : Color.solaceSignal) : .black.opacity(0.1)).frame(height: 8)
+                    Rectangle().fill(index < score ? (score == 4 ? Color.lunaSafe : Color.lunaSignal) : .black.opacity(0.1)).frame(height: 8)
                 }
             }
             Text(["start with 8 characters", "weak · add length", "fair · add a number", "good · add a symbol", "strong password"][score])
@@ -529,11 +529,11 @@ final class ReminderManager: ObservableObject {
     }
 
     private func scheduleReminders() {
-        center.removePendingNotificationRequests(withIdentifiers: ["solace.daily.scan", "solace.eye.break", "solace.water.break", "solace.food.break"])
-        scheduleCalendar(id: "solace.daily.scan", title: "comfort check-in", body: "How do your eyes feel today? Log a quick comfort check when you have a moment.", hour: 9)
-        scheduleInterval(id: "solace.eye.break", title: "distance break", body: "Look away from the screen and blink naturally for 20 seconds.", seconds: 7_200)
-        scheduleInterval(id: "solace.water.break", title: "water break", body: "A quick water break can support comfort during screen time.", seconds: 10_800)
-        scheduleCalendar(id: "solace.food.break", title: "colorful food check", body: "Add a leafy green, orange vegetable, pepper, or citrus food today.", hour: 13)
+        center.removePendingNotificationRequests(withIdentifiers: ["luna.daily.scan", "luna.eye.break", "luna.water.break", "luna.food.break"])
+        scheduleCalendar(id: "luna.daily.scan", title: "comfort check-in", body: "How do your eyes feel today? Your optional quick eye check keeps the camera view hidden.", hour: 9)
+        scheduleInterval(id: "luna.eye.break", title: "distance break", body: "Look away from the screen and blink naturally for 20 seconds.", seconds: 7_200)
+        scheduleInterval(id: "luna.water.break", title: "water break", body: "A quick water break can support comfort during screen time.", seconds: 10_800)
+        scheduleCalendar(id: "luna.food.break", title: "colorful food check", body: "Add a leafy green, orange vegetable, pepper, or citrus food today.", hour: 13)
         DispatchQueue.main.async { self.status = "daily reminders on" }
     }
 
@@ -576,14 +576,14 @@ struct HomeView: View {
                     Spacer()
                     Image(systemName: "cross.case.fill")
                         .frame(width: 46, height: 46)
-                        .background(Color.solaceSignal)
-                        .foregroundStyle(Color.solaceInk)
-                        .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                        .background(Color.lunaSignal)
+                        .foregroundStyle(Color.lunaInk)
+                        .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                 }
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(dueText).font(.system(size: 21, weight: .medium))
-                        Text("Log how your eyes feel. No camera or visual test is required.")
+                        Text("Log how you feel, then use the optional quick eye check. Front-camera landmarks are processed on-device without showing or saving the picture.")
                             .font(.system(size: 13)).foregroundStyle(.secondary)
                         BlackButton(title: "log eye comfort", icon: "hand.tap", action: checkIn)
                     }
@@ -591,16 +591,16 @@ struct HomeView: View {
                 Card {
                     VStack(alignment: .leading, spacing: 9) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text("overall health score").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.solacePurple)
+                            Text("overall health score").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.lunaPurple)
                             Spacer()
                             Text(store.hasTodayEyeScore ? "\(store.overallHealthScore)" : "—")
                                 .font(.system(size: 34, weight: .black, design: .monospaced))
                             Text("/100").font(.system(size: 11)).foregroundStyle(.secondary)
                         }
-                        Text(store.hasTodayEyeScore ? "Comfort signal 40% · water 20% · screen-free 25% · breathing 15%. Higher is better." : "Complete a comfort check to unlock the overall score. Your habit inputs are already being saved.")
+                        Text(store.hasTodayEyeScore ? "Eye results 40% · water 20% · screen-free 25% · breathing 15%. Higher is better." : "Complete the eye check to unlock the overall score. Your habit inputs are already being saved.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                         HStack(spacing: 8) {
-                            scoreChip("COMFORT", store.todayEyeScore.map(String.init) ?? "—")
+                            scoreChip("EYE", store.todayEyeScore.map(String.init) ?? "—")
                             scoreChip("HABITS", "\(store.todayHabitScore)")
                         }
                     }
@@ -608,7 +608,7 @@ struct HomeView: View {
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text("daily health inputs").font(.system(size: 17, weight: .medium)).foregroundStyle(Color.solacePurple)
+                            Text("daily health inputs").font(.system(size: 17, weight: .medium)).foregroundStyle(Color.lunaPurple)
                             Spacer()
                             Text("\(store.todayHabitScore)").font(.system(size: 30, weight: .black, design: .monospaced))
                             Text("/100").font(.system(size: 11)).foregroundStyle(.secondary)
@@ -624,14 +624,14 @@ struct HomeView: View {
                         Label("\(store.todayBreathingMinutes)/\(store.breathingGoalMinutes)m breathing", systemImage: "waveform.path")
                             .font(.system(size: 12, weight: .medium, design: .monospaced))
                         Text("Water \(store.todayWaterPoints)/20 · off phone \(store.todayScreenFreePoints)/25 · breathing \(store.todayBreathingPoints)/15")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                            .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.lunaBlue)
                         BlackButton(title: store.todayWater >= store.waterGoal ? "water goal met" : "log one water", icon: "drop.fill") { store.logWater() }
                             .disabled(store.todayWater >= store.waterGoal)
                     }
                 }
                 Card {
                     VStack(alignment: .leading, spacing: 9) {
-                        Text("safety reminders").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.solaceTeal)
+                        Text("safety reminders").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.lunaTeal)
                         Text(reminders.status).font(.system(size: 13)).foregroundStyle(.secondary)
                         BlackButton(title: "enable safety reminders", icon: "bell.badge") { reminders.enable() }
                     }
@@ -643,14 +643,14 @@ struct HomeView: View {
 
     private func scoreChip(_ label: String, _ value: String) -> some View {
         HStack(spacing: 6) {
-            Text(label).foregroundStyle(Color.solaceBlue)
-            Text(value).foregroundStyle(Color.solaceInk)
+            Text(label).foregroundStyle(Color.lunaBlue)
+            Text(value).foregroundStyle(Color.lunaInk)
         }
         .font(.system(size: 10, weight: .black, design: .monospaced))
         .padding(.horizontal, 9)
         .padding(.vertical, 7)
-        .background(Color.solaceSignal.opacity(0.45))
-        .overlay(Rectangle().stroke(Color.solaceInk.opacity(0.35), lineWidth: 1))
+        .background(Color.lunaSignal.opacity(0.45))
+        .overlay(Rectangle().stroke(Color.lunaInk.opacity(0.35), lineWidth: 1))
     }
 }
 
@@ -661,35 +661,45 @@ struct SafetyCheckInView: View {
     @State private var selectedContexts: Set<String> = []
     @State private var severity = 2.0
     @State private var closeRotation = 0.0
+    @State private var showFunctionalChecks = false
 
     private let choices = [
-        ("dry or gritty eyes", "drop", Color.solaceTeal),
-        ("tired or heavy eyes", "moon.zzz", Color.solaceLavender),
-        ("blur after near work", "textformat.size", Color.solaceCoral),
-        ("headache near screens", "bolt", Color.solacePeach),
-        ("light feels uncomfortable", "sun.max", Color.solaceBeige)
+        ("dry or gritty eyes", "drop", Color.lunaTeal),
+        ("tired or heavy eyes", "moon.zzz", Color.lunaLavender),
+        ("blur after near work", "textformat.size", Color.lunaCoral),
+        ("headache near screens", "bolt", Color.lunaPeach),
+        ("light feels uncomfortable", "sun.max", Color.lunaBeige)
     ]
     private let contextChoices = ["long near-work block", "window or lamp glare", "dim room", "fan or dry airflow", "contacts or glasses", "short sleep"]
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+        if showFunctionalChecks {
+            FunctionalEyeCheckView(
+                symptoms: Array(selected).sorted(),
+                contexts: Array(selectedContexts).sorted(),
+                severity: selected.isEmpty ? 0 : Int(severity),
+                back: { showFunctionalChecks = false },
+                done: done
+            )
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     Button {
                         withAnimation(.spring(response: 0.24, dampingFraction: 0.7)) { closeRotation = 30 }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) { back() }
                     } label: {
-                        Image(systemName: "xmark").frame(width: 44, height: 44).background(Color.solacePaper)
-                            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                        Image(systemName: "xmark").frame(width: 44, height: 44).background(Color.lunaPaper)
+                            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                     }
                     .rotationEffect(.degrees(closeRotation))
-                    .buttonStyle(SolacePressStyle())
+                    .buttonStyle(LunaPressStyle())
                     Spacer()
-                    Text("PRIVATE · ANSWERS ONLY").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(Color.solaceTeal)
+                    Text("PRIVATE · CAMERA VIEW HIDDEN").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(Color.lunaTeal)
                 }
 
                 RetroTypeSwitcher(title: "comfort check-in", phrases: ["tap what you feel", "skip what you do not", "save a truthful pattern"])
-                Text("Select only sensations you notice right now. This check uses your answers only; no camera or visual test is involved.")
+                Text("First, select only sensations you notice right now. The next screen explains the simple quick eye check before anything starts.")
                     .font(.system(size: 13)).foregroundStyle(.secondary)
 
                 ForEach(choices, id: \.0) { choice in
@@ -703,18 +713,18 @@ struct SafetyCheckInView: View {
                             Image(systemName: choice.1)
                                 .frame(width: 40, height: 40)
                                 .background(active ? choice.2 : choice.2.opacity(0.22))
-                                .overlay(Rectangle().stroke(Color.solaceInk.opacity(active ? 1 : 0.35), lineWidth: 1))
+                                .overlay(Rectangle().stroke(Color.lunaInk.opacity(active ? 1 : 0.35), lineWidth: 1))
                                 .rotationEffect(.degrees(active ? -7 : 0))
-                            Text(choice.0).font(.system(size: 16, weight: .medium)).foregroundStyle(Color.solaceInk)
+                            Text(choice.0).font(.system(size: 16, weight: .medium)).foregroundStyle(Color.lunaInk)
                             Spacer()
                             Image(systemName: active ? "checkmark.square.fill" : "square")
                                 .foregroundStyle(active ? choice.2 : .secondary)
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         .padding(.vertical, 10)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Color.solaceBrown.opacity(0.16)).frame(height: 1) }
+                        .overlay(alignment: .bottom) { Rectangle().fill(Color.lunaBrown.opacity(0.16)).frame(height: 1) }
                     }
-                    .buttonStyle(SolacePressStyle())
+                    .buttonStyle(LunaPressStyle())
                 }
 
                 if !selected.isEmpty {
@@ -723,7 +733,7 @@ struct SafetyCheckInView: View {
                             Text("how noticeable?").font(.system(size: 16, weight: .medium))
                             Spacer()
                             Text(["", "very mild", "mild", "moderate", "strong", "very strong"][Int(severity)])
-                                .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.solacePurple)
+                                .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.lunaPurple)
                         }
                         HStack(spacing: 6) {
                             ForEach(1...5, id: \.self) { level in
@@ -732,12 +742,12 @@ struct SafetyCheckInView: View {
                                 } label: {
                                     Text("\(level)")
                                         .font(.system(size: 13, weight: .black, design: .monospaced))
-                                        .foregroundStyle(Int(severity) == level ? Color.solacePaper : Color.solaceInk)
+                                        .foregroundStyle(Int(severity) == level ? Color.lunaPaper : Color.lunaInk)
                                         .frame(maxWidth: .infinity).frame(height: 38)
-                                        .background(Int(severity) == level ? Color.solaceInk : Color.solacePaper)
-                                        .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                                        .background(Int(severity) == level ? Color.lunaInk : Color.lunaPaper)
+                                        .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                                 }
-                                .buttonStyle(SolacePressStyle())
+                                .buttonStyle(LunaPressStyle())
                             }
                         }
                         Text("what was happening?").font(.system(size: 16, weight: .medium)).padding(.top, 4)
@@ -749,66 +759,26 @@ struct SafetyCheckInView: View {
                                         if active { selectedContexts.remove(context) } else { selectedContexts.insert(context) }
                                     }
                                 } label: {
-                                    Text(context).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.solaceInk)
+                                    Text(context).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.lunaInk)
                                         .frame(maxWidth: .infinity).frame(minHeight: 42)
-                                        .background(active ? Color.solaceLavender : Color.white.opacity(0.58))
+                                        .background(active ? Color.lunaLavender : Color.white.opacity(0.58))
                                         .clipShape(Rectangle())
-                                        .overlay(Rectangle().stroke(Color.solaceInk.opacity(0.35), lineWidth: 1))
+                                        .overlay(Rectangle().stroke(Color.lunaInk.opacity(0.35), lineWidth: 1))
                                 }
-                                .buttonStyle(SolacePressStyle())
+                                .buttonStyle(LunaPressStyle())
                             }
                         }
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                BlackButton(title: "save comfort check", icon: "checkmark") {
-                    saveComfortCheck()
+                BlackButton(title: "continue to function checks", icon: "rectangle.and.hand.point.up.left") {
+                    showFunctionalChecks = true
                 }
+                }
+                .padding(20)
             }
-            .padding(20)
         }
-    }
-
-    private func saveComfortCheck() {
-        let symptoms = selected.sorted()
-        let contexts = selectedContexts.sorted()
-        let selectedSeverity = symptoms.isEmpty ? 0 : Int(severity)
-        let relevantContexts = contexts.filter {
-            ["long near-work block", "window or lamp glare", "dim room", "short sleep"].contains($0)
-        }.count
-        let symptomLoad = min(55, symptoms.count * 8 + selectedSeverity * 4)
-        let contextLoad = min(25, relevantContexts * 5 + max(0, contexts.count - relevantContexts) * 2)
-        let score = max(0, 100 - symptomLoad - contextLoad)
-        let label: String
-        if score >= 75 { label = "comfortable self-report" }
-        else if score >= 50 { label = "some discomfort reported" }
-        else { label = "higher discomfort reported" }
-        var signals = symptoms.map { "self-reported: \($0)" }
-        if signals.isEmpty { signals = ["no discomfort selected"] }
-        let assessment = EyeStrainAssessment(
-            score: score,
-            label: label,
-            dataStatus: "self-reported",
-            observedSeconds: 0,
-            trackingPercent: 0,
-            blinkRatePerMinute: nil,
-            prolongedClosureSeconds: 0,
-            partialClosurePercent: 0,
-            symptomCount: symptoms.count,
-            signals: signals
-        )
-        done(ScreeningReport(
-            capturedAt: Date(),
-            summary: "comfort signal " + String(score) + "/100 · " + label,
-            quality: "self-reported comfort check · no camera used",
-            interpretation: "This signal uses only the sensations and situations you selected. It is not a vision or diagnostic test.",
-            eyeStrain: assessment,
-            symptoms: symptoms,
-            contexts: contexts,
-            severity: symptoms.isEmpty ? nil : selectedSeverity,
-            functionalCheck: nil
-        ))
     }
 }
 
@@ -829,11 +799,12 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
     @Published private(set) var coveragePercent = 0
     @Published private(set) var coverageComplete = false
     @Published private(set) var coverageReady = false
+    @Published private(set) var handCoverageDetected = false
     @Published private(set) var status = "camera ready"
 
     private let session = AVCaptureSession()
-    private let sessionQueue = DispatchQueue(label: "solace.hidden-eye.session")
-    private let analysisQueue = DispatchQueue(label: "solace.hidden-eye.analysis")
+    private let sessionQueue = DispatchQueue(label: "luna.hidden-eye.session")
+    private let analysisQueue = DispatchQueue(label: "luna.hidden-eye.analysis")
     private var configured = false
     private var startedAt: Date?
     private var analyzedFrames = 0
@@ -926,6 +897,7 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
         coveragePercent = 0
         coverageComplete = false
         coverageReady = false
+        handCoverageDetected = false
         coverageMode = false
         coverageStartedAt = nil
         coverageAnalyzedFrames = 0
@@ -940,6 +912,7 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
         coveragePercent = 0
         coverageComplete = false
         coverageReady = false
+        handCoverageDetected = false
         coverageStartedAt = nil
         coverageAnalyzedFrames = 0
         coveragePassingFrames = 0
@@ -975,6 +948,31 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
         configured = true
     }
 
+    private static func imageRect(for region: VNFaceLandmarkRegion2D, face: VNFaceObservation) -> CGRect? {
+        let points = region.normalizedPoints.map {
+            CGPoint(
+                x: face.boundingBox.minX + CGFloat($0.x) * face.boundingBox.width,
+                y: face.boundingBox.minY + CGFloat($0.y) * face.boundingBox.height
+            )
+        }
+        guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(),
+              let minY = points.map(\.y).min(), let maxY = points.map(\.y).max(),
+              maxX > minX, maxY > minY else { return nil }
+        let rect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        return rect.insetBy(dx: -max(0.035, rect.width * 1.2), dy: -max(0.05, rect.height * 2.0))
+    }
+
+    private static func handRect(_ observation: VNHumanHandPoseObservation) -> CGRect? {
+        guard let points = try? observation.recognizedPoints(.all) else { return nil }
+        let locations = points.values
+            .filter { $0.confidence >= 0.35 }
+            .map(\.location)
+        guard let minX = locations.map(\.x).min(), let maxX = locations.map(\.x).max(),
+              let minY = locations.map(\.y).min(), let maxY = locations.map(\.y).max(),
+              maxX > minX, maxY > minY else { return nil }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         guard !finishedState, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let now = Date()
@@ -982,30 +980,41 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
         analyzedFrames += 1
         let timestamp = now.timeIntervalSinceReferenceDate
         let request = VNDetectFaceLandmarksRequest()
+        let handRequest = VNDetectHumanHandPoseRequest()
+        handRequest.maximumHandCount = 2
         let handler = VNImageRequestHandler(cvPixelBuffer: buffer, orientation: .leftMirrored)
-        try? handler.perform([request])
+        try? handler.perform([request, handRequest])
         let face = (request.results ?? []).max { $0.boundingBox.width < $1.boundingBox.width }
         let leftPoints = face?.landmarks?.leftEye?.normalizedPoints.map { EyePoint(x: $0.x, y: $0.y) }
         let rightPoints = face?.landmarks?.rightEye?.normalizedPoints.map { EyePoint(x: $0.x, y: $0.y) }
         let left = leftPoints.flatMap(EyeLandmarkNormalizer.sixPointContour)
         let right = rightPoints.flatMap(EyeLandmarkNormalizer.sixPointContour)
         let visible = left != nil && right != nil
+        let leftEyeRect = face.flatMap { face in face.landmarks?.leftEye.flatMap { Self.imageRect(for: $0, face: face) } }
+        let rightEyeRect = face.flatMap { face in face.landmarks?.rightEye.flatMap { Self.imageRect(for: $0, face: face) } }
+        let handRects = (handRequest.results ?? []).compactMap(Self.handRect)
+        let leftHandCoversEye = leftEyeRect.map { eye in handRects.contains { $0.intersects(eye) } } ?? false
+        let rightHandCoversEye = rightEyeRect.map { eye in handRects.contains { $0.intersects(eye) } } ?? false
 
         if coverageMode {
             if coverageStartedAt == nil { coverageStartedAt = now }
             coverageAnalyzedFrames += 1
             let targetIsCovered: Bool
             let remainingEyeVisible: Bool
+            let handCoversTarget: Bool
             switch coverageTarget {
             case .left:
-                targetIsCovered = left == nil
+                targetIsCovered = left == nil || leftHandCoversEye
                 remainingEyeVisible = right != nil
+                handCoversTarget = leftHandCoversEye
             case .right:
-                targetIsCovered = right == nil
+                targetIsCovered = right == nil || rightHandCoversEye
                 remainingEyeVisible = left != nil
+                handCoversTarget = rightHandCoversEye
             case .none:
                 targetIsCovered = false
                 remainingEyeVisible = false
+                handCoversTarget = false
             }
             let passing = targetIsCovered && remainingEyeVisible
             if passing {
@@ -1016,15 +1025,14 @@ final class HiddenEyeObserver: NSObject, ObservableObject, AVCaptureVideoDataOut
             }
             let percent = coverageAnalyzedFrames == 0 ? 0 : Int((Double(coveragePassingFrames) / Double(coverageAnalyzedFrames) * 100).rounded())
             let elapsed = now.timeIntervalSince(coverageStartedAt ?? now)
-            // Advance as soon as the requested eye disappears for a few
-            // consecutive frames while the other eye remains visible. Three
-            // frames keeps a normal blink or a noisy landmark frame from
-            // advancing the check, without making the user wait a full
-            // verification window.
-            let ready = passing && coverageConsecutivePassingFrames >= 3
+            // A hand-over-eye overlap is the strong signal. If Vision loses
+            // the covered eye before it can classify the hand, use a longer
+            // landmark-only window so a normal blink cannot advance the test.
+            let ready = passing && ((handCoversTarget && coverageConsecutivePassingFrames >= 2) || (!handCoversTarget && coverageConsecutivePassingFrames >= 10))
             DispatchQueue.main.async { [weak self] in
                 self?.coveragePercent = percent
-                self?.status = ready ? "eye covered · moving to the eye check" : "cover the requested eye · \(percent)% signal"
+                self?.handCoverageDetected = handCoversTarget
+                self?.status = ready ? "hand coverage confirmed · moving to the eye check" : (handCoversTarget ? "hand found over the requested eye · hold briefly" : "cover the requested eye · \(percent)% signal")
             }
             if ready {
                 finishCoverage(confirmed: true)
@@ -1127,14 +1135,14 @@ struct FunctionalEyeCheckView: View {
                 HStack {
                     Button(action: back) {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44)
-                            .background(Color.solacePaper)
-                            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                            .background(Color.lunaPaper)
+                            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                     }
-                    .buttonStyle(SolacePressStyle())
+                    .buttonStyle(LunaPressStyle())
                     Spacer()
                     Text("QUICK EYE CHECK // \(stage.rawValue.uppercased())")
                         .font(.system(size: 9, weight: .black, design: .monospaced))
-                        .foregroundStyle(Color.solaceBlue)
+                        .foregroundStyle(Color.lunaBlue)
                 }
 
                 switch stage {
@@ -1185,14 +1193,14 @@ struct FunctionalEyeCheckView: View {
                     Text("HIDDEN")
                 }
                 .font(.system(size: 10, weight: .black, design: .monospaced))
-                .foregroundStyle(Color.solaceBlue)
+                .foregroundStyle(Color.lunaBlue)
                 Image(systemName: camera.eyesVisible ? "eye.fill" : "eye.slash.fill")
                     .font(.system(size: 52, weight: .black))
-                    .foregroundStyle(camera.eyesVisible ? Color.solaceSafe : Color.solaceAlert)
+                    .foregroundStyle(camera.eyesVisible ? Color.lunaSafe : Color.lunaAlert)
                     .contentTransition(.symbolEffect(.replace))
                 Text(camera.status.uppercased())
                     .font(.system(size: 12, weight: .black, design: .monospaced)).multilineTextAlignment(.center)
-                RetroProgressBar(value: Double(camera.elapsedSeconds), total: 15, color: .solaceSafe)
+                RetroProgressBar(value: Double(camera.elapsedSeconds), total: 15, color: .lunaSafe)
                 HStack {
                     Text("TRACKING \(camera.trackingPercent)%")
                     Spacer()
@@ -1200,7 +1208,7 @@ struct FunctionalEyeCheckView: View {
                 }
                 .font(.system(size: 10, weight: .black, design: .monospaced))
             }
-            .padding(16).background(Color.solacePaper).overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
+            .padding(16).background(Color.lunaPaper).overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
             if camera.authorization == .denied || camera.authorization == .restricted {
                 BlackButton(title: "open camera permission", icon: "gearshape") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -1210,8 +1218,8 @@ struct FunctionalEyeCheckView: View {
                 }
             } else if camera.isComplete {
                 BlackButton(title: "continue to digit check", icon: "arrow.right") {
-                    camera.startCoverageVerification(target: .right)
-                    stage = .coverageLeft
+                    resetClarity()
+                    stage = .acuityLeft
                 }
             }
         }
@@ -1223,23 +1231,23 @@ struct FunctionalEyeCheckView: View {
         let canContinue = camera.coverageReady || camera.coverageComplete || camera.authorization == .denied || camera.authorization == .restricted
         return VStack(alignment: .leading, spacing: 16) {
             RetroTypeSwitcher(title: "\(testedSide.rawValue) eye setup", phrases: ["cover \(coveredSide.rawValue)", "hidden camera check", "no preview"])
-            Text("Cover your \(coveredSide.rawValue.uppercased()) eye without pressing it. Solace checks that the \(testedSide.rawValue) eye remains visible while the covered side drops out of the landmark signal.")
+            Text("Cover your \(coveredSide.rawValue.uppercased()) eye without pressing it. Luna checks that the \(testedSide.rawValue) eye remains visible while the covered side drops out of the landmark signal.")
                 .font(.system(size: 13)).foregroundStyle(.secondary)
             VStack(spacing: 12) {
                 Image(systemName: camera.coverageReady ? "checkmark.shield.fill" : "eye.slash")
                     .font(.system(size: 46, weight: .black))
-                    .foregroundStyle(camera.coverageReady ? Color.solaceSafe : Color.solaceAlert)
+                    .foregroundStyle(camera.coverageReady ? Color.lunaSafe : Color.lunaAlert)
                 Text(camera.status.uppercased())
                     .font(.system(size: 11, weight: .black, design: .monospaced))
                     .multilineTextAlignment(.center)
-                RetroProgressBar(value: Double(camera.coveragePercent), total: 100, color: camera.coverageReady ? .solaceSafe : .solaceBlue)
+                RetroProgressBar(value: Double(camera.coveragePercent), total: 100, color: camera.coverageReady ? .lunaSafe : .lunaBlue)
                 Text("COVERAGE SIGNAL \(camera.coveragePercent)%")
                     .font(.system(size: 10, weight: .black, design: .monospaced))
             }
             .padding(18)
             .frame(maxWidth: .infinity)
-            .background(Color.solacePaper)
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
+            .background(Color.lunaPaper)
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
             if canContinue {
                 BlackButton(title: camera.coverageReady ? "continue to \(testedSide.rawValue) eye" : "continue with manual cover", icon: "arrow.right") {
                     advanceFromCoverage()
@@ -1269,7 +1277,7 @@ struct FunctionalEyeCheckView: View {
         VStack(alignment: .leading, spacing: 16) {
             RetroTypeSwitcher(title: testingLeft ? "left eye" : "right eye", phrases: ["20/20 → 20/50", "smaller each success", "five choices"])
             Text(testingLeft ? "Cover your RIGHT eye without pressing it." : "Cover your LEFT eye without pressing it.")
-                .font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(Color.solaceAlert)
+                .font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(Color.lunaAlert)
             HStack {
                 Text("VISION LEVEL \(acuityLevelLabel)")
                 Spacer()
@@ -1277,14 +1285,14 @@ struct FunctionalEyeCheckView: View {
             }
             .font(.system(size: 10, weight: .black, design: .monospaced))
             ZStack {
-                Color.solacePaper
+                Color.lunaPaper
                 Text(digits[digitIndex])
                     .font(.system(size: claritySizes[min(currentCorrect, claritySizes.count - 1)], weight: .black, design: .monospaced))
-                    .foregroundStyle(Color.solaceInk.opacity(clarityOpacities[min(currentCorrect, clarityOpacities.count - 1)]))
+                    .foregroundStyle(Color.lunaInk.opacity(clarityOpacities[min(currentCorrect, clarityOpacities.count - 1)]))
                     .contentTransition(.numericText())
             }
             .frame(maxWidth: .infinity).frame(height: 250)
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
             digitPad(action: answerClarity)
         }
     }
@@ -1296,8 +1304,8 @@ struct FunctionalEyeCheckView: View {
             Text("Now cover your LEFT eye without pressing it.")
                 .font(.system(size: 15, weight: .bold, design: .monospaced))
             BlackButton(title: "start right eye", icon: "arrow.right") {
-                camera.startCoverageVerification(target: .left)
-                stage = .coverageRight
+                resetClarity()
+                stage = .acuityRight
             }
         }
     }
@@ -1312,14 +1320,14 @@ struct FunctionalEyeCheckView: View {
             }
             .font(.system(size: 10, weight: .black, design: .monospaced))
             ZStack {
-                Color.solacePaper
+                Color.lunaPaper
                 Text(digits[digitIndex])
                     .font(.system(size: contrastSizes[min(contrastDifficultyIndex, contrastSizes.count - 1)], weight: .black, design: .monospaced))
-                    .foregroundStyle(Color.solaceInk.opacity(contrastLevels[min(contrastDifficultyIndex, contrastLevels.count - 1)]))
+                    .foregroundStyle(Color.lunaInk.opacity(contrastLevels[min(contrastDifficultyIndex, contrastLevels.count - 1)]))
                     .contentTransition(.numericText())
             }
             .frame(maxWidth: .infinity).frame(height: 250)
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
             digitPad(action: answerContrast)
         }
     }
@@ -1338,16 +1346,16 @@ struct FunctionalEyeCheckView: View {
                     Button { answerSearch(index) } label: {
                         Text(index == searchTarget ? "C" : "O")
                             .font(.system(size: 24, weight: .black, design: .monospaced))
-                            .foregroundStyle(Color.solaceInk)
+                            .foregroundStyle(Color.lunaInk)
                             .frame(maxWidth: .infinity).frame(height: 52)
-                            .background(Color.solacePaper)
-                            .overlay(Rectangle().stroke(Color.solaceInk.opacity(0.45), lineWidth: 1))
+                            .background(Color.lunaPaper)
+                            .overlay(Rectangle().stroke(Color.lunaInk.opacity(0.45), lineWidth: 1))
                     }
-                    .buttonStyle(SolacePressStyle())
+                    .buttonStyle(LunaPressStyle())
                 }
             }
             Text("Tap the C. Accuracy and response time affect the result.")
-                .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.lunaBlue)
         }
     }
 
@@ -1360,7 +1368,7 @@ struct FunctionalEyeCheckView: View {
                     Text("CURRENT STRAIN LOAD").font(.system(size: 10, weight: .black, design: .monospaced))
                     Text("\(result.strainLoad)/100 · \(result.strainBand.uppercased())")
                         .font(.system(size: 24, weight: .black, design: .monospaced))
-                        .foregroundStyle(result.strainLoad >= 50 ? Color.solaceAlert : Color.solaceBlue)
+                        .foregroundStyle(result.strainLoad >= 50 ? Color.lunaAlert : Color.lunaBlue)
                     Text("Confidence \(result.confidence)% from completed symptom, camera, digit, contrast, and search inputs.")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -1385,7 +1393,7 @@ struct FunctionalEyeCheckView: View {
 
     private func compactStep(_ number: String, _ label: String) -> some View {
         HStack(spacing: 10) {
-            Text(number).foregroundStyle(Color.solaceBlue)
+            Text(number).foregroundStyle(Color.lunaBlue)
             Text(label)
         }
         .font(.system(size: 12, weight: .black, design: .monospaced))
@@ -1398,20 +1406,20 @@ struct FunctionalEyeCheckView: View {
                     Text(digits[answer])
                         .font(.system(size: 20, weight: .black, design: .monospaced))
                         .frame(maxWidth: .infinity).frame(height: 52)
-                        .foregroundStyle(Color.solacePaper).background(Color.solaceInk)
-                        .overlay(Rectangle().stroke(Color.solaceSignal, lineWidth: 2))
-                }.buttonStyle(SolacePressStyle())
+                        .foregroundStyle(Color.lunaPaper).background(Color.lunaInk)
+                        .overlay(Rectangle().stroke(Color.lunaSignal, lineWidth: 2))
+                }.buttonStyle(LunaPressStyle())
             }
         }
     }
 
     private func resultRow(_ label: String, _ value: String) -> some View {
         HStack {
-            Text(label).font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+            Text(label).font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(Color.lunaBlue)
             Spacer()
             Text(value).font(.system(size: 11, weight: .bold, design: .monospaced))
         }
-        .padding(11).background(Color.solacePaper).overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 1))
+        .padding(11).background(Color.lunaPaper).overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 1))
     }
 
     private func resetClarity() {
@@ -1623,7 +1631,7 @@ struct SafetySummaryView: View {
                 RetroTypeSwitcher(title: "your safety pattern", phrases: ["problem, then action", "reported, never guessed", "small changes count"])
                 Text(report?.summary ?? "nothing logged yet").font(.system(size: 22, weight: .medium))
                 Text(report?.quality ?? "Use the check-in folder whenever you want to record comfort.").font(.system(size: 13)).foregroundStyle(.secondary)
-                Text(reportNotice).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(Color.solacePurple)
+                Text(reportNotice).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(Color.lunaPurple)
                 if let check = report?.functionalCheck {
                     Card {
                         VStack(alignment: .leading, spacing: 8) {
@@ -1633,9 +1641,9 @@ struct SafetySummaryView: View {
                                 Text("\(check.strainLoad)/100").font(.system(size: 25, weight: .black, design: .monospaced))
                             }
                             Text("\(check.strainBand.uppercased()) · \(check.confidence)% INPUT CONFIDENCE")
-                                .font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceAlert)
+                                .font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(Color.lunaAlert)
                             Text("EYE SCORE · \(max(0, 100 - check.strainLoad))/100 · higher is better")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                                .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.lunaBlue)
                             Text("Contrast \(check.contrastCorrect)/\(check.contrastTotal) · search \(check.searchCorrect)/\(check.searchTotal) at \(check.medianSearchMilliseconds) ms")
                                 .font(.system(size: 11)).foregroundStyle(.secondary)
                             if let tracking = check.hiddenCameraTrackingPercent, let blinks = check.hiddenCameraBlinkCount {
@@ -1662,19 +1670,19 @@ struct SafetySummaryView: View {
                             }
                             Text(estimate.label.uppercased())
                                 .font(.system(size: 10, weight: .black, design: .monospaced))
-                                .foregroundStyle(Color.solaceBlue)
+                                .foregroundStyle(Color.lunaBlue)
                             Text(estimate.scoreMeaning)
                                 .font(.system(size: 12)).foregroundStyle(.secondary)
                         }
                     }
                 }
-                Text(plan.title.uppercased()).font(.system(size: 18, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceAlert)
+                Text(plan.title.uppercased()).font(.system(size: 18, weight: .black, design: .monospaced)).foregroundStyle(Color.lunaAlert)
                 Text(plan.detail).font(.system(size: 12)).foregroundStyle(.secondary)
                 ForEach(Array(plan.actions.enumerated()), id: \.offset) { index, action in
                     HStack(alignment: .top, spacing: 12) {
                         Text("\(index + 1)").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(.white)
-                            .frame(width: 28, height: 28).background(index.isMultiple(of: 2) ? Color.solaceAlert : Color.solaceBlue).clipShape(Rectangle())
-                        Text(action).font(.system(size: 14)).foregroundStyle(Color.solaceInk)
+                            .frame(width: 28, height: 28).background(index.isMultiple(of: 2) ? Color.lunaAlert : Color.lunaBlue).clipShape(Rectangle())
+                        Text(action).font(.system(size: 14)).foregroundStyle(Color.lunaInk)
                     }
                     .padding(.vertical, 8)
                 }
@@ -1700,11 +1708,11 @@ struct ExerciseButton: View {
                 Image(systemName: icon).font(.system(size: 20, weight: .medium))
                 Text(title).font(.system(size: 12, weight: .medium))
             }
-            .foregroundStyle(Color.solaceInk)
+            .foregroundStyle(Color.lunaInk)
             .frame(maxWidth: .infinity).frame(height: 74)
-            .overlay(Rectangle().stroke(Color.solaceTeal.opacity(0.55), lineWidth: 2))
+            .overlay(Rectangle().stroke(Color.lunaTeal.opacity(0.55), lineWidth: 2))
         }
-        .buttonStyle(SolacePressStyle())
+        .buttonStyle(LunaPressStyle())
     }
 }
 
@@ -1721,7 +1729,7 @@ struct WellnessExerciseSheet: View {
                 }
             }
             .padding(24)
-            .background(Color.solaceBackground.ignoresSafeArea())
+            .background(Color.lunaBackground.ignoresSafeArea())
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("close") { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
@@ -1767,7 +1775,7 @@ final class BreathSession: NSObject, ObservableObject {
     @Published private(set) var calibrationProgress = 0.0
 
     private let engine = AVAudioEngine()
-    private let processingQueue = DispatchQueue(label: "solace.breath.signal")
+    private let processingQueue = DispatchQueue(label: "luna.breath.signal")
     private var tapInstalled = false
     private var samples: [Double] = []
     private var lastEnergy = 0.0
@@ -1822,7 +1830,7 @@ final class BreathSession: NSObject, ObservableObject {
                 try audio.setActive(true, options: .notifyOthersOnDeactivation)
                 let input = self.engine.inputNode
                 let format = input.inputFormat(forBus: 0)
-                guard format.sampleRate > 0 else { throw NSError(domain: "solace.breath", code: 1) }
+                guard format.sampleRate > 0 else { throw NSError(domain: "luna.breath", code: 1) }
                 if self.tapInstalled { input.removeTap(onBus: 0) }
                 input.installTap(onBus: 0, bufferSize: 2_048, format: format) { [weak self] buffer, _ in
                     self?.process(buffer: buffer)
@@ -1943,7 +1951,7 @@ struct BreathExerciseView: View {
             HStack {
                 Text("BREATH RESET").font(.system(size: 26, weight: .black, design: .monospaced))
                 Spacer()
-                Text("on-device").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(Color.solaceBrown)
+                Text("on-device").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(Color.lunaBrown)
             }
             Text("This short exercise listens to the microphone’s breathing envelope. It counts detected cycles and changes the guide when your inhale or exhale signal changes.")
                 .font(.system(size: 14)).foregroundStyle(.secondary)
@@ -1958,17 +1966,17 @@ struct BreathExerciseView: View {
                     .font(.system(size: 28, weight: .black, design: .monospaced))
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
-                        Rectangle().fill(Color.solaceInk.opacity(0.10))
-                        Rectangle().fill(Color.solaceBlue)
+                        Rectangle().fill(Color.lunaInk.opacity(0.10))
+                        Rectangle().fill(Color.lunaBlue)
                             .frame(width: max(4, proxy.size.width * CGFloat(breath.amplitude)))
                     }
-                    .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                    .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                 }
                 .frame(height: 34)
                 HStack(spacing: 4) {
                     ForEach(0..<12, id: \.self) { index in
                         Rectangle()
-                            .fill(Double(index) / 12.0 <= breath.amplitude ? Color.solaceSignal : Color.solaceInk.opacity(0.12))
+                            .fill(Double(index) / 12.0 <= breath.amplitude ? Color.lunaSignal : Color.lunaInk.opacity(0.12))
                             .frame(height: pulse ? 12 : 8)
                     }
                 }
@@ -1976,10 +1984,10 @@ struct BreathExerciseView: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity).frame(height: 174)
-            .background(Color.solacePaper)
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
-            .background(Rectangle().fill(Color.solaceInk).offset(x: 5, y: 5))
-            Text(breath.quality).font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(Color.solaceBrown)
+            .background(Color.lunaPaper)
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
+            .background(Rectangle().fill(Color.lunaInk).offset(x: 5, y: 5))
+            Text(breath.quality).font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(Color.lunaBrown)
             Text(breath.tip).font(.system(size: 14)).foregroundStyle(.secondary)
             Spacer()
             BlackButton(title: breath.isRunning ? "stop breath check" : "start breath check", icon: breath.isRunning ? "stop.fill" : "mic.fill") {
@@ -2038,12 +2046,12 @@ struct BreathingLabView: View {
                 HStack {
                     Button { detector.stop(); back() } label: {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44)
-                            .background(Color.solaceSignal).clipShape(Rectangle())
-                            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                            .background(Color.lunaSignal).clipShape(Rectangle())
+                            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                     }
-                    .buttonStyle(SolacePressStyle())
+                    .buttonStyle(LunaPressStyle())
                     Spacer()
-                    Text("BREATH LAB").font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(Color.solacePurple)
+                    Text("BREATH LAB").font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(Color.lunaPurple)
                 }
 
                 Text("SELECT BREATH PROTOCOL").font(.system(size: 25, weight: .black, design: .monospaced))
@@ -2060,11 +2068,11 @@ struct BreathingLabView: View {
                             Spacer()
                             Image(systemName: selectedID == option.id ? "checkmark.square.fill" : "square")
                         }
-                        .foregroundStyle(Color.solaceInk)
+                        .foregroundStyle(Color.lunaInk)
                         .padding(.vertical, 10)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Color.solaceBrown.opacity(0.16)).frame(height: 1) }
+                        .overlay(alignment: .bottom) { Rectangle().fill(Color.lunaBrown.opacity(0.16)).frame(height: 1) }
                     }
-                    .buttonStyle(SolacePressStyle())
+                    .buttonStyle(LunaPressStyle())
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
@@ -2072,7 +2080,7 @@ struct BreathingLabView: View {
                         Text("MICROPHONE SENSOR")
                         Spacer()
                         Text(detector.isRunning ? "LIVE" : "STANDBY")
-                            .foregroundStyle(detector.isRunning ? Color.solaceSafe : Color.solaceAlert)
+                            .foregroundStyle(detector.isRunning ? Color.lunaSafe : Color.lunaAlert)
                     }
                     .font(.system(size: 10, weight: .black, design: .monospaced))
                     Text(detector.isRunning ? detector.phase.title.uppercased() : (awaitingDetector ? "STARTING MIC…" : "READY"))
@@ -2080,12 +2088,12 @@ struct BreathingLabView: View {
                         .contentTransition(.numericText())
                     GeometryReader { proxy in
                         ZStack(alignment: .leading) {
-                            Rectangle().fill(Color.solaceInk.opacity(0.10))
-                            Rectangle().fill(Color.solaceBlue)
+                            Rectangle().fill(Color.lunaInk.opacity(0.10))
+                            Rectangle().fill(Color.lunaBlue)
                                 .frame(width: max(4, proxy.size.width * CGFloat(detector.amplitude)))
                                 .animation(.linear(duration: 0.15), value: detector.amplitude)
                         }
-                        .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                        .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                     }
                     .frame(height: 42)
                     HStack {
@@ -2097,21 +2105,21 @@ struct BreathingLabView: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity).frame(height: 210)
-                .background(Color.solacePaper)
-                .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 3))
-                .background(Rectangle().fill(Color.solaceInk).offset(x: 6, y: 6))
+                .background(Color.lunaPaper)
+                .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 3))
+                .background(Rectangle().fill(Color.lunaInk).offset(x: 6, y: 6))
 
                 HStack {
                     Text("\(detector.breathCount) detected cycles").font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Spacer()
                     Text(time(totalRemaining)).font(.system(size: 13, weight: .semibold, design: .monospaced))
                 }
-                RetroProgressBar(value: Double(program.duration - totalRemaining), total: Double(program.duration), color: .solaceAlert)
+                RetroProgressBar(value: Double(program.duration - totalRemaining), total: Double(program.duration), color: .lunaAlert)
                 if isRunning {
                     HStack {
                         Text("pacing guide").foregroundStyle(.secondary)
                         Spacer()
-                        Text("\(step.phase.title) · \(phaseRemaining)s").foregroundStyle(Color.solacePurple)
+                        Text("\(step.phase.title) · \(phaseRemaining)s").foregroundStyle(Color.lunaPurple)
                     }
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 }
@@ -2120,7 +2128,7 @@ struct BreathingLabView: View {
                 if detector.isRunning && isRunning {
                     Text(detector.phase == step.phase ? "detected phase matches the guide" : "detected \(detector.phase.title) · guide says \(step.phase.title)")
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(detector.phase == step.phase ? Color.solaceTeal : Color.solaceBrown)
+                        .foregroundStyle(detector.phase == step.phase ? Color.lunaTeal : Color.lunaBrown)
                         .contentTransition(.opacity)
                 }
                 BlackButton(title: (isRunning || awaitingDetector) ? "stop live detection" : "start live detection", icon: (isRunning || awaitingDetector) ? "stop.fill" : "mic.fill") {
@@ -2133,7 +2141,7 @@ struct BreathingLabView: View {
             }
             .padding(22)
         }
-        .background(Color.solaceBackground.ignoresSafeArea())
+        .background(Color.lunaBackground.ignoresSafeArea())
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -2212,7 +2220,7 @@ struct MovementResetView: View {
             Text("A guided two-minute distance and movement reset. Each step has a purpose: release near-focus tension before you return to the phone.")
                 .font(.system(size: 14)).foregroundStyle(.secondary)
             HStack(spacing: 14) {
-                Image(systemName: "figure.walk").font(.system(size: 28, weight: .medium)).foregroundStyle(Color.solaceBrown)
+                Image(systemName: "figure.walk").font(.system(size: 28, weight: .medium)).foregroundStyle(Color.lunaBrown)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(steps[phase]).font(.system(size: 17, weight: .medium))
                     Text(String(format: "%02d:%02d", seconds / 60, seconds % 60)).font(.system(size: 24, weight: .semibold, design: .monospaced))
@@ -2220,7 +2228,7 @@ struct MovementResetView: View {
                 Spacer()
             }
             .padding(16).liquidGlass(16)
-            RetroProgressBar(value: Double(120 - seconds), total: 120, color: .solaceBlue)
+            RetroProgressBar(value: Double(120 - seconds), total: 120, color: .lunaBlue)
             Spacer()
             BlackButton(title: isRunning ? "pause reset" : "start reset", icon: isRunning ? "pause.fill" : "play.fill") { isRunning.toggle() }
             BlackButton(title: "done") { dismiss() }
@@ -2259,7 +2267,7 @@ struct RoutineActivitySummary: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "clock").foregroundStyle(Color.solacePurple)
+            Image(systemName: "clock").foregroundStyle(Color.lunaPurple)
             VStack(alignment: .leading, spacing: 3) {
                 Text(activity.name.isEmpty ? "untitled activity" : activity.name)
                     .font(.system(size: 14, weight: .medium))
@@ -2308,11 +2316,11 @@ struct ScheduleTimeline: View {
                     VStack(spacing: 0) {
                         Image(systemName: event.icon)
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(event.isSupportCue ? Color.solaceInk : .white)
+                            .foregroundStyle(event.isSupportCue ? Color.lunaInk : .white)
                             .frame(width: 30, height: 30)
-                            .background(event.isSupportCue ? Color.solaceBeige : Color.solaceInk)
+                            .background(event.isSupportCue ? Color.lunaBeige : Color.lunaInk)
                             .clipShape(Rectangle())
-                        if index < events.count - 1 { Rectangle().fill(Color.solaceBeige).frame(width: 2, height: 34) }
+                        if index < events.count - 1 { Rectangle().fill(Color.lunaBeige).frame(width: 2, height: 34) }
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         HStack {
@@ -2343,7 +2351,7 @@ struct ReportView: View {
                 Text("YOUR COMFORT LOG").font(.system(size: 27, weight: .black, design: .monospaced))
                 TextSwitcher(phrases: ["read the signal", "choose one small change", "check in again when useful"])
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Color.solaceBrown)
+                    .foregroundStyle(Color.lunaBrown)
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(report?.summary ?? "no capture yet").font(.system(size: 22, weight: .medium))
@@ -2393,11 +2401,11 @@ struct ReportView: View {
                                     Text(symptom).foregroundStyle(.primary)
                                     Spacer()
                                     Image(systemName: selectedSymptoms.contains(symptom) ? "checkmark.square.fill" : "square")
-                                        .foregroundStyle(selectedSymptoms.contains(symptom) ? Color.solacePurple : .secondary)
+                                        .foregroundStyle(selectedSymptoms.contains(symptom) ? Color.lunaPurple : .secondary)
                                 }
                                 .padding(.horizontal, 14).frame(height: 44).liquidGlass(18)
                             }
-                            .buttonStyle(SolacePressStyle())
+                            .buttonStyle(LunaPressStyle())
                         }
                         BlackButton(title: symptomsSaved ? "comfort check saved" : "save comfort check") {
                             saveSymptoms()
@@ -2463,9 +2471,9 @@ struct FoodSupportCard: View {
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 8) {
-                Text(guidance.title).font(.system(size: 17, weight: .medium)).foregroundStyle(Color.solaceTeal)
+                Text(guidance.title).font(.system(size: 17, weight: .medium)).foregroundStyle(Color.lunaTeal)
                 Text(guidance.message).font(.system(size: 13)).foregroundStyle(.secondary)
-                Text(guidance.foods.joined(separator: "  ·  ")).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.solaceInk)
+                Text(guidance.foods.joined(separator: "  ·  ")).font(.system(size: 13, weight: .medium)).foregroundStyle(Color.lunaInk)
                 Text(guidance.recipeTitle).font(.system(size: 14, weight: .medium)).padding(.top, 3)
                 Text(guidance.recipe).font(.system(size: 13)).foregroundStyle(.secondary)
             }
@@ -2481,20 +2489,20 @@ struct FocusComfortControl: View {
         Card {
             VStack(alignment: .leading, spacing: 9) {
                 HStack {
-                    Text("screen-off focus").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.solaceTeal)
+                    Text("screen-off focus").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.lunaTeal)
                     Spacer()
-                    Button { showExplanation = true } label: { Image(systemName: "info.square") }.buttonStyle(SolacePressStyle())
+                    Button { showExplanation = true } label: { Image(systemName: "info.square") }.buttonStyle(LunaPressStyle())
                 }
                 if session.countdown > 0 {
                     Text("\(session.countdown)").font(.system(size: 52, weight: .black, design: .monospaced)).contentTransition(.numericText())
-                        .foregroundStyle(Color.solaceCoral)
+                        .foregroundStyle(Color.lunaCoral)
                 } else if session.isArmed {
                     Text(time(session.elapsedSeconds)).font(.system(size: 30, weight: .semibold, design: .monospaced))
                 } else {
                     Text("lock the phone to earn screen-free time").font(.system(size: 13, weight: .semibold, design: .monospaced))
                 }
-                Text(session.status).font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(Color.solaceBrown)
-                Text("Solace starts counting after five seconds. Lock the phone; when it is unlocked again, the session pauses and the completed minutes are saved.")
+                Text(session.status).font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(Color.lunaBrown)
+                Text("Luna starts counting after five seconds. Lock the phone; when it is unlocked again, the session pauses and the completed minutes are saved.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                 BlackButton(title: session.isArmed ? "end focus session" : "start focus session", icon: session.isArmed ? "stop.fill" : "lock.iphone") {
                     if session.isArmed { session.endManually() } else { showExplanation = true }
@@ -2505,7 +2513,7 @@ struct FocusComfortControl: View {
             Button("cancel", role: .cancel) {}
             if !session.isArmed { Button("start · 5 seconds") { session.begin() } }
         } message: {
-            Text("After you start, you have five seconds to lock the phone. Solace records time only after that countdown. Unlocking the phone automatically pauses the timer, restores brightness, saves completed whole minutes, and sends a notification. Other apps and total Screen Time are not read.")
+            Text("After you start, you have five seconds to lock the phone. Luna records time only after that countdown. Unlocking the phone automatically pauses the timer, restores brightness, saves completed whole minutes, and sends a notification. Other apps and total Screen Time are not read.")
         }
     }
 
@@ -2536,7 +2544,7 @@ struct WellnessView: View {
                 RetroTypeSwitcher(title: "improvements", phrases: ["respond to comfort", "eat something colorful", "take a gentler reset"])
                 Card {
                     VStack(alignment: .leading, spacing: 9) {
-                        Text("breathing lab").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.solacePurple)
+                        Text("breathing lab").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.lunaPurple)
                         Text("Timed slow-breathing programs with live microphone phase feedback.").font(.system(size: 13)).foregroundStyle(.secondary)
                         BlackButton(title: "open breathing lab", icon: "waveform.path") { breathing() }
                     }
@@ -2544,7 +2552,7 @@ struct WellnessView: View {
                 FocusComfortControl(session: focusSession)
                 Card {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("movement reset").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.solaceCoral)
+                        Text("movement reset").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.lunaCoral)
                         Text("A two-minute distance, shoulder, and walking reset.").font(.system(size: 13)).foregroundStyle(.secondary)
                         BlackButton(title: "start movement reset", icon: "figure.walk") { selectedExercise = .fitness }
                     }
@@ -2553,7 +2561,7 @@ struct WellnessView: View {
                     let plan = PersonalizedSafetyPlan.make(for: report)
                     Card {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("personalized next step").font(.system(size: 17, weight: .medium)).foregroundStyle(Color.solaceCoral)
+                            Text("personalized next step").font(.system(size: 17, weight: .medium)).foregroundStyle(Color.lunaCoral)
                             Text(plan.title).font(.system(size: 20, weight: .medium))
                             Text(plan.actions.first ?? plan.detail).font(.system(size: 13)).foregroundStyle(.secondary)
                         }
@@ -2584,18 +2592,18 @@ struct WellnessView: View {
                             HStack {
                                 Text(selectedCuisine.isEmpty ? "choose a cuisine" : selectedCuisine)
                                     .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(Color.solaceInk)
+                                    .foregroundStyle(Color.lunaInk)
                                 Spacer()
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 12, weight: .black))
-                                    .foregroundStyle(Color.solaceBlue)
+                                    .foregroundStyle(Color.lunaBlue)
                             }
                             .padding(.horizontal, 14)
                             .frame(maxWidth: .infinity, minHeight: 52)
-                            .background(Color.solacePaper)
-                            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                            .background(Color.lunaPaper)
+                            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
                         }
-                        .buttonStyle(SolacePressStyle())
+                        .buttonStyle(LunaPressStyle())
                         Text("Choose a cuisine to see dishes selected for vitamin A and C foods.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                         if selectedCuisine.isEmpty {
@@ -2608,14 +2616,14 @@ struct WellnessView: View {
                                     DishIllustration(dish: dish)
                                     VStack(alignment: .leading, spacing: 5) {
                                         Text(dish.name).font(.system(size: 15, weight: .medium)).foregroundStyle(.primary)
-                                        Text("vitamin A + vitamin C").font(.system(size: 12)).foregroundStyle(Color.solacePurple)
+                                        Text("vitamin A + vitamin C").font(.system(size: 12)).foregroundStyle(Color.lunaPurple)
                                     }
                                     Spacer(); Image(systemName: "chevron.right").foregroundStyle(.secondary)
                                 }
                                 .padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
-                                .overlay(alignment: .bottom) { Rectangle().fill(Color.solaceBrown.opacity(0.14)).frame(height: 1) }
+                                .overlay(alignment: .bottom) { Rectangle().fill(Color.lunaBrown.opacity(0.14)).frame(height: 1) }
                             }
-                            .buttonStyle(SolacePressStyle())
+                            .buttonStyle(LunaPressStyle())
                         }
                     }
                 }
@@ -2639,7 +2647,7 @@ struct RoutineActivityEditorRow: View {
                 DatePicker("starts", selection: $activity.startTime, displayedComponents: .hourAndMinute).font(.system(size: 11))
                 DatePicker("finishes", selection: $activity.endTime, displayedComponents: .hourAndMinute).font(.system(size: 11))
             }
-            if canDelete { Button(action: delete) { Image(systemName: "minus.square.fill").foregroundStyle(.secondary) }.buttonStyle(SolacePressStyle()) }
+            if canDelete { Button(action: delete) { Image(systemName: "minus.square.fill").foregroundStyle(.secondary) }.buttonStyle(LunaPressStyle()) }
         }
         .padding(11).liquidGlass(22)
     }
@@ -2649,9 +2657,9 @@ struct DishIllustration: View {
     let dish: DishIdea
     var body: some View {
         ZStack {
-            Rectangle().fill(Color.solacePaper).shadow(color: Color.solaceInk, radius: 0, x: 4, y: 4)
-            Rectangle().stroke(Color.solaceBlue, lineWidth: 3).padding(5)
-            Image(systemName: dish.icon).font(.system(size: 28, weight: .medium)).foregroundStyle(Color.solacePurple)
+            Rectangle().fill(Color.lunaPaper).shadow(color: Color.lunaInk, radius: 0, x: 4, y: 4)
+            Rectangle().stroke(Color.lunaBlue, lineWidth: 3).padding(5)
+            Image(systemName: dish.icon).font(.system(size: 28, weight: .medium)).foregroundStyle(Color.lunaPurple)
         }
         .frame(width: 72, height: 72)
     }
@@ -2699,7 +2707,7 @@ struct DishRecipeSheet: View {
                             Text("detailed steps").font(.system(size: 16, weight: .medium))
                             ForEach(Array(dish.steps.enumerated()), id: \.offset) { index, step in
                                 HStack(alignment: .top, spacing: 10) {
-                                    Text("\(index + 1)").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).frame(width: 24, height: 24).background(Color.solaceInk).clipShape(Rectangle())
+                                    Text("\(index + 1)").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).frame(width: 24, height: 24).background(Color.lunaInk).clipShape(Rectangle())
                                     Text(step).font(.system(size: 13)).foregroundStyle(.secondary)
                                 }
                             }
@@ -2775,7 +2783,7 @@ final class CameraSession: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     @Published var faceBox: CGRect?
     @Published var faceModelLines: [[CGPoint]] = []
     let session = AVCaptureSession()
-    private let queue = DispatchQueue(label: "solace.camera.frames")
+    private let queue = DispatchQueue(label: "luna.camera.frames")
     private let blinkEngine = BlinkEngine()
     private var strainMonitor = EyeStrainSignalMonitor()
     private var testPhaseState: CameraTestPhase = .eyeDetection
@@ -3210,7 +3218,7 @@ struct FaceModelOverlay: View {
                                 if index == 0 { path.move(to: mapped) } else { path.addLine(to: mapped) }
                             }
                         }
-                        .stroke(Color.solacePeach.opacity(0.92), style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
+                        .stroke(Color.lunaPeach.opacity(0.92), style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
                         ForEach(Array(line.enumerated()), id: \.offset) { _, point in
                             Circle()
                                 .fill(Color.white.opacity(0.95))
@@ -3273,7 +3281,7 @@ struct CaptureView: View {
                         Image(systemName: "xmark").foregroundStyle(.white).frame(width: 44, height: 44).background(.white.opacity(0.14)).clipShape(Circle())
                     }
                     .rotationEffect(.degrees(closeRotation))
-                    .buttonStyle(SolacePressStyle())
+                    .buttonStyle(LunaPressStyle())
                     Spacer()
                     Text(camera.authorization == .authorized ? phaseTitle : "camera access")
                         .foregroundStyle(.white).padding(.horizontal, 12).padding(.vertical, 8).background(.white.opacity(0.14)).clipShape(Capsule())
@@ -3356,13 +3364,13 @@ struct CaptureView: View {
             if camera.runState == .countdown {
                 Color.white.opacity(0.94).ignoresSafeArea()
                 VStack(spacing: 12) {
-                    Text("center your face").font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(Color.solaceInk)
+                    Text("center your face").font(.system(size: 15, weight: .medium, design: .rounded)).foregroundStyle(Color.lunaInk)
                     Text("\(max(1, camera.countdown))")
                         .font(.system(size: 112, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.solaceInk)
+                        .foregroundStyle(Color.lunaInk)
                         .contentTransition(.numericText())
                         .animation(.spring(response: 0.34, dampingFraction: 0.7), value: camera.countdown)
-                    Text("eye test begins next").font(.system(size: 13)).foregroundStyle(Color.solaceBrown)
+                    Text("eye test begins next").font(.system(size: 13)).foregroundStyle(Color.lunaBrown)
                 }
             }
         }
@@ -3405,7 +3413,7 @@ struct BlinkRhythmView: View {
                 if let latest, let check {
                     Card {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("LATEST RECORDED RHYTHM").font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                            Text("LATEST RECORDED RHYTHM").font(.system(size: 10, weight: .black, design: .monospaced)).foregroundStyle(Color.lunaBlue)
                             Text(latest.capturedAt.formatted(date: .abbreviated, time: .shortened))
                                 .font(.system(size: 14, weight: .medium, design: .monospaced))
                             HStack(spacing: 8) {
@@ -3417,7 +3425,7 @@ struct BlinkRhythmView: View {
                                 .font(.system(size: 12)).foregroundStyle(.secondary)
                             if intervals.isEmpty {
                                 Text("Not enough detected blinks to show spacing yet.")
-                                    .font(.system(size: 13, weight: .medium, design: .monospaced)).foregroundStyle(Color.solaceBrown)
+                                    .font(.system(size: 13, weight: .medium, design: .monospaced)).foregroundStyle(Color.lunaBrown)
                             } else {
                                 BlinkSpacingChart(intervals: intervals).frame(height: 174)
                             }
@@ -3428,7 +3436,7 @@ struct BlinkRhythmView: View {
                 } else {
                     Card {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("NO BLINK TIMING YET").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                            Text("NO BLINK TIMING YET").font(.system(size: 12, weight: .black, design: .monospaced)).foregroundStyle(Color.lunaBlue)
                             Text("No blink timing is saved yet. A recorded blink session will appear here.")
                                 .font(.system(size: 14)).foregroundStyle(.secondary)
                         }
@@ -3441,13 +3449,13 @@ struct BlinkRhythmView: View {
 
     private func rhythmMetric(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.system(size: 8, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+            Text(label).font(.system(size: 8, weight: .black, design: .monospaced)).foregroundStyle(Color.lunaBlue)
             Text(value).font(.system(size: 12, weight: .bold, design: .monospaced)).lineLimit(1, reservesSpace: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(Color.solaceSignal.opacity(0.22))
-        .overlay(Rectangle().stroke(Color.solaceInk.opacity(0.18), lineWidth: 1))
+        .background(Color.lunaSignal.opacity(0.22))
+        .overlay(Rectangle().stroke(Color.lunaInk.opacity(0.18), lineWidth: 1))
     }
 }
 
@@ -3458,7 +3466,7 @@ struct BlinkSpacingChart: View {
         let visibleIntervals = Array(intervals.suffix(10))
         return VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text("GAP LENGTH · SECONDS").font(.system(size: 9, weight: .black, design: .monospaced)).foregroundStyle(Color.solaceBlue)
+                Text("GAP LENGTH · SECONDS").font(.system(size: 9, weight: .black, design: .monospaced)).foregroundStyle(Color.lunaBlue)
                 Spacer()
                 Text("LAST \(visibleIntervals.count)").font(.system(size: 9, weight: .black, design: .monospaced)).foregroundStyle(.secondary)
             }
@@ -3466,23 +3474,23 @@ struct BlinkSpacingChart: View {
                 let maximum = max(1.0, visibleIntervals.max() ?? 1.0)
                 ZStack(alignment: .bottomLeading) {
                     VStack(spacing: 0) {
-                        Rectangle().fill(Color.solaceInk.opacity(0.08)).frame(height: 1)
+                        Rectangle().fill(Color.lunaInk.opacity(0.08)).frame(height: 1)
                         Spacer()
-                        Rectangle().fill(Color.solaceInk.opacity(0.08)).frame(height: 1)
+                        Rectangle().fill(Color.lunaInk.opacity(0.08)).frame(height: 1)
                         Spacer()
-                        Rectangle().fill(Color.solaceInk.opacity(0.20)).frame(height: 1)
+                        Rectangle().fill(Color.lunaInk.opacity(0.20)).frame(height: 1)
                     }
                     HStack(alignment: .bottom, spacing: 5) {
                         ForEach(Array(visibleIntervals.enumerated()), id: \.offset) { index, interval in
                             VStack(spacing: 4) {
                                 Spacer(minLength: 0)
                                 RoundedRectangle(cornerRadius: 3)
-                                    .fill(index.isMultiple(of: 2) ? Color.solaceBlue : Color.solaceLavender)
+                                    .fill(index.isMultiple(of: 2) ? Color.lunaBlue : Color.lunaLavender)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: max(12, (proxy.size.height - 22) * CGFloat(interval / maximum)))
                                 Text("\(index + 1)")
                                     .font(.system(size: 8, weight: .black, design: .monospaced))
-                                    .foregroundStyle(Color.solaceInk.opacity(0.7))
+                                    .foregroundStyle(Color.lunaInk.opacity(0.7))
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
@@ -3493,8 +3501,8 @@ struct BlinkSpacingChart: View {
             .frame(height: 132)
         }
         .padding(10)
-        .background(Color.solacePaper)
-        .overlay(Rectangle().stroke(Color.solaceInk.opacity(0.30), lineWidth: 1))
+        .background(Color.lunaPaper)
+        .overlay(Rectangle().stroke(Color.lunaInk.opacity(0.30), lineWidth: 1))
         .animation(.easeOut(duration: 0.25), value: visibleIntervals)
     }
 }
@@ -3504,8 +3512,8 @@ struct SettingsView: View {
     @Binding var contrast: Bool
     let signOut: () -> Void
     @State private var search = ""
-    @AppStorage("solace.fontStyle") private var fontStyle = SolaceFontStyle.mono.rawValue
-    @AppStorage("solace.autoComfortBrightness") private var autoComfortBrightness = false
+    @AppStorage("luna.fontStyle") private var fontStyle = LunaFontStyle.mono.rawValue
+    @AppStorage("luna.autoComfortBrightness") private var autoComfortBrightness = false
     @State private var settingsMessage: String?
     var body: some View {
         ScrollView {
@@ -3525,21 +3533,21 @@ struct SettingsView: View {
                 Card {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 5) {
-                            ForEach(SolaceFontStyle.allCases) { style in
+                            ForEach(LunaFontStyle.allCases) { style in
                                 Button {
                                     fontStyle = style.rawValue
                                 } label: {
                                     Text(style.label.uppercased())
                                         .font(.system(size: 9, weight: .black, design: .monospaced))
-                                        .foregroundStyle(fontStyle == style.rawValue ? Color.solacePaper : Color.solaceInk)
+                                        .foregroundStyle(fontStyle == style.rawValue ? Color.lunaPaper : Color.lunaInk)
                                         .frame(maxWidth: .infinity).frame(height: 36)
-                                        .background(fontStyle == style.rawValue ? Color.solaceInk : Color.solacePaper)
-                                        .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 1))
+                                        .background(fontStyle == style.rawValue ? Color.lunaInk : Color.lunaPaper)
+                                        .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 1))
                                 }
-                                .buttonStyle(SolacePressStyle())
+                                .buttonStyle(LunaPressStyle())
                             }
                         }
-                        Text("Type style updates the reading rhythm across solace. Choose the one that feels clearest during a check-in.")
+                        Text("Type style updates the reading rhythm across luna. Choose the one that feels clearest during a check-in.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                         Divider()
                         RetroToggle(title: "high contrast", isOn: $contrast)
@@ -3548,7 +3556,7 @@ struct SettingsView: View {
                             .onChange(of: autoComfortBrightness) { _, enabled in
                                 if enabled { applyComfortBrightness(showMessage: true) }
                             }
-                        Text("Applies a moderate 38% brightness preset while you use solace. It does not pretend to measure the room or your eyes.")
+                        Text("Applies a moderate 38% brightness preset while you use luna. It does not pretend to measure the room or your eyes.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                         BlackButton(title: "apply comfort brightness", icon: "sun.max") {
                             applyComfortBrightness(showMessage: true)
@@ -3561,15 +3569,15 @@ struct SettingsView: View {
                 } label: {
                     Label("open iOS settings", systemImage: "gearshape")
                         .frame(maxWidth: .infinity).frame(height: 50)
-                        .foregroundStyle(.white).background(Color.solaceInk).clipShape(Rectangle())
-                        .overlay(Rectangle().stroke(Color.solaceSignal, lineWidth: 2))
+                        .foregroundStyle(.white).background(Color.lunaInk).clipShape(Rectangle())
+                        .overlay(Rectangle().stroke(Color.lunaSignal, lineWidth: 2))
                 }
-                .buttonStyle(SolacePressStyle())
+                .buttonStyle(LunaPressStyle())
                 Button("sign out", action: signOut)
                     .frame(maxWidth: .infinity).frame(height: 50)
-                    .foregroundStyle(.white).background(Color.solaceInk).clipShape(Rectangle())
-                    .overlay(Rectangle().stroke(Color.solaceSignal, lineWidth: 2))
-                    .buttonStyle(SolacePressStyle())
+                    .foregroundStyle(.white).background(Color.lunaInk).clipShape(Rectangle())
+                    .overlay(Rectangle().stroke(Color.lunaSignal, lineWidth: 2))
+                    .buttonStyle(LunaPressStyle())
             }
             .padding(20)
         }
@@ -3595,7 +3603,7 @@ struct SettingsView: View {
 struct RetroGridBackground: View {
     var body: some View {
         Canvas { context, size in
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.solaceBackground))
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.lunaBackground))
             var grid = Path()
             stride(from: 0.0, through: size.width, by: 24).forEach { x in
                 grid.move(to: CGPoint(x: x, y: 0))
@@ -3605,7 +3613,7 @@ struct RetroGridBackground: View {
                 grid.move(to: CGPoint(x: 0, y: y))
                 grid.addLine(to: CGPoint(x: size.width, y: y))
             }
-            context.stroke(grid, with: .color(.solaceInk.opacity(0.045)), lineWidth: 1)
+            context.stroke(grid, with: .color(.lunaInk.opacity(0.045)), lineWidth: 1)
         }
         .allowsHitTesting(false)
     }
@@ -3615,10 +3623,10 @@ struct LiquidGlass: ViewModifier {
     let radius: CGFloat
     func body(content: Content) -> some View {
         content
-            .background(Rectangle().fill(Color.solacePaper))
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+            .background(Rectangle().fill(Color.lunaPaper))
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
             .clipShape(Rectangle())
-            .background(Rectangle().fill(Color.solaceInk).offset(x: 4, y: 4))
+            .background(Rectangle().fill(Color.lunaInk).offset(x: 4, y: 4))
     }
 }
 
@@ -3636,7 +3644,7 @@ extension View {
 struct RetroProgressBar: View {
     let value: Double
     let total: Double
-    var color: Color = .solaceBlue
+    var color: Color = .lunaBlue
 
     private var progress: Double {
         guard total > 0 else { return 0 }
@@ -3646,10 +3654,10 @@ struct RetroProgressBar: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Rectangle().fill(Color.solaceInk.opacity(0.10))
+                Rectangle().fill(Color.lunaInk.opacity(0.10))
                 Rectangle().fill(color).frame(width: proxy.size.width * progress)
             }
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
         }
         .frame(height: 14)
         .animation(.linear(duration: 0.18), value: progress)
@@ -3669,15 +3677,15 @@ struct RetroToggle: View {
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
                 Spacer()
                 ZStack {
-                    Rectangle().fill(isOn ? Color.solaceSafe : Color.solacePaper)
-                    if isOn { Image(systemName: "checkmark").font(.system(size: 12, weight: .black)).foregroundStyle(Color.solacePaper) }
+                    Rectangle().fill(isOn ? Color.lunaSafe : Color.lunaPaper)
+                    if isOn { Image(systemName: "checkmark").font(.system(size: 12, weight: .black)).foregroundStyle(Color.lunaPaper) }
                 }
                 .frame(width: 28, height: 28)
-                .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
             }
-            .foregroundStyle(Color.solaceInk)
+            .foregroundStyle(Color.lunaInk)
         }
-        .buttonStyle(SolacePressStyle())
+        .buttonStyle(LunaPressStyle())
     }
 }
 
@@ -3687,9 +3695,9 @@ struct Card<Content: View>: View {
         content
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.solacePaper)
-            .overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
-            .background(Rectangle().fill(Color.solaceInk).offset(x: 4, y: 4))
+            .background(Color.lunaPaper)
+            .overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
+            .background(Rectangle().fill(Color.lunaInk).offset(x: 4, y: 4))
     }
 }
 
@@ -3699,14 +3707,14 @@ struct Brand: View {
     var body: some View {
         HStack(spacing: 12) {
             if showIcon {
-                Image(systemName: "shield.checkered").font(.system(size: 22, weight: .black)).foregroundStyle(Color.solaceInk).frame(width: 48, height: 48).background(Color.solaceSignal).overlay(Rectangle().stroke(Color.solaceInk, lineWidth: 2))
+                Image(systemName: "shield.checkered").font(.system(size: 22, weight: .black)).foregroundStyle(Color.lunaInk).frame(width: 48, height: 48).background(Color.lunaSignal).overlay(Rectangle().stroke(Color.lunaInk, lineWidth: 2))
             }
-            Text("SOLACE").font(.system(size: 21, weight: .black, design: .monospaced)).tracking(-1).foregroundStyle(foreground)
+            Text("LUNA").font(.system(size: 21, weight: .black, design: .monospaced)).tracking(-1).foregroundStyle(foreground)
         }
     }
 }
 
-enum SolaceFontStyle: String, CaseIterable, Identifiable {
+enum LunaFontStyle: String, CaseIterable, Identifiable {
     case rounded, mono, serif
     var id: String { rawValue }
     var label: String {
@@ -3735,21 +3743,21 @@ struct RetroTypeSwitcher: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Rectangle().fill(Color.solaceSafe).frame(width: 9, height: 9)
-                Text("SOLACE // SAFETY DESK")
+                Rectangle().fill(Color.lunaSafe).frame(width: 9, height: 9)
+                Text("LUNA // SAFETY DESK")
             }
             .font(.system(size: 10, weight: .black, design: .monospaced))
-            .foregroundStyle(Color.solaceBlue)
+            .foregroundStyle(Color.lunaBlue)
             Text(title.uppercased())
                 .font(.system(size: 27, weight: weights[phase % weights.count], design: .monospaced))
                 .tracking(-1.2)
-                .foregroundStyle(Color.solaceInk)
+                .foregroundStyle(Color.lunaInk)
                 .contentTransition(.interpolate)
             if !phrases.isEmpty {
                 Text(phrases[phase % phrases.count])
                     .id(phase)
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color.solaceAlert)
+                    .foregroundStyle(Color.lunaAlert)
                     .transition(.asymmetric(insertion: .push(from: .bottom), removal: .opacity))
             }
         }
@@ -3786,7 +3794,7 @@ struct TextSwitcher: View {
     }
 }
 
-struct SolacePressStyle: ButtonStyle {
+struct LunaPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
@@ -3811,14 +3819,14 @@ struct BlackButton: View {
             .frame(maxWidth: .infinity).frame(height: 54)
             .font(.system(size: 14, weight: .black, design: .monospaced))
             .foregroundStyle(.white)
-            .background(Color.solaceInk).clipShape(Rectangle())
-            .overlay(Rectangle().stroke(Color.solaceSignal, lineWidth: 2))
+            .background(Color.lunaInk).clipShape(Rectangle())
+            .overlay(Rectangle().stroke(Color.lunaSignal, lineWidth: 2))
             .overlay(alignment: .leading) {
-                Rectangle().fill(shimmer ? Color.solaceSafe : Color.solaceSignal).frame(width: shimmer ? 12 : 5)
+                Rectangle().fill(shimmer ? Color.lunaSafe : Color.lunaSignal).frame(width: shimmer ? 12 : 5)
             }
-            .background(Rectangle().fill(Color.solaceInk.opacity(0.75)).offset(x: 4, y: 4))
+            .background(Rectangle().fill(Color.lunaInk.opacity(0.75)).offset(x: 4, y: 4))
         }
-        .buttonStyle(SolacePressStyle())
+        .buttonStyle(LunaPressStyle())
         .disabled(disabled)
         .opacity(disabled ? 0.35 : 1)
         .onAppear { withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: true)) { shimmer = true } }
@@ -3833,26 +3841,26 @@ struct GooeyInput: View {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
             TextField(placeholder, text: $text)
             if !text.isEmpty {
-                Button { text = "" } label: { Image(systemName: "xmark.square.fill") }.buttonStyle(SolacePressStyle())
+                Button { text = "" } label: { Image(systemName: "xmark.square.fill") }.buttonStyle(LunaPressStyle())
             }
         }
         .padding(.horizontal, 14).frame(height: 52).liquidGlass(0).clipShape(Rectangle())
     }
 }
 
-struct SolaceNav: View {
-    @Binding var route: SolaceRoute
+struct LunaNav: View {
+    @Binding var route: LunaRoute
     var body: some View {
         HStack(spacing: 3) {
-            NavButton(title: "home", icon: "house", accent: .solaceBeige, active: route == .home) { route = .home }
-            NavButton(title: "check-in", icon: "hand.tap", accent: .solaceCoral, active: route == .checkin) { route = .checkin }
-            NavButton(title: "blink rhythm", icon: "waveform.path.ecg", accent: .solaceLavender, active: route == .rhythm) { route = .rhythm }
-            NavButton(title: "improve", icon: "sparkles", accent: .solaceTeal, active: route == .wellness) { route = .wellness }
-            NavButton(title: "settings", icon: "gearshape", accent: .solacePeach, active: route == .settings) { route = .settings }
+            NavButton(title: "home", icon: "house", accent: .lunaBeige, active: route == .home) { route = .home }
+            NavButton(title: "check-in", icon: "hand.tap", accent: .lunaCoral, active: route == .checkin) { route = .checkin }
+            NavButton(title: "blink rhythm", icon: "waveform.path.ecg", accent: .lunaLavender, active: route == .rhythm) { route = .rhythm }
+            NavButton(title: "improve", icon: "sparkles", accent: .lunaTeal, active: route == .wellness) { route = .wellness }
+            NavButton(title: "settings", icon: "gearshape", accent: .lunaPeach, active: route == .settings) { route = .settings }
         }
         .padding(.horizontal, 5).padding(.top, 8).padding(.bottom, 4)
-        .background(Color.solacePaper)
-        .overlay(alignment: .top) { Rectangle().fill(Color.solaceInk).frame(height: 4) }
+        .background(Color.lunaPaper)
+        .overlay(alignment: .top) { Rectangle().fill(Color.lunaInk).frame(height: 4) }
     }
 }
 
@@ -3868,35 +3876,35 @@ struct NavButton: View {
                 Image(systemName: icon)
                 Text(title.uppercased()).font(.system(size: 8, weight: .bold, design: .monospaced))
             }
-            .foregroundStyle(active ? Color.solaceInk : .secondary)
+            .foregroundStyle(active ? Color.lunaInk : .secondary)
             .frame(maxWidth: .infinity).frame(height: 50)
             .background(active ? accent.opacity(0.9) : Color.clear)
             .clipShape(Rectangle())
-            .overlay(Rectangle().stroke(Color.solaceInk.opacity(active ? 1 : 0.16), lineWidth: 1))
+            .overlay(Rectangle().stroke(Color.lunaInk.opacity(active ? 1 : 0.16), lineWidth: 1))
             .overlay(alignment: .topLeading) {
-                if active { Rectangle().fill(Color.solaceInk).frame(width: 28, height: 5).offset(y: -3) }
+                if active { Rectangle().fill(Color.lunaInk).frame(width: 28, height: 5).offset(y: -3) }
             }
             .offset(y: active ? -3 : 0)
             .animation(.snappy(duration: 0.18), value: active)
         }
-        .buttonStyle(SolacePressStyle())
+        .buttonStyle(LunaPressStyle())
     }
 }
 
 extension Color {
-    static let solaceBackground = Color(red: 0.975, green: 0.948, blue: 0.885)
-    static let solacePaper = Color(red: 0.995, green: 0.982, blue: 0.944)
-    static let solaceInk = Color(red: 0.08, green: 0.14, blue: 0.21)
-    static let solaceSignal = Color(red: 0.72, green: 0.88, blue: 0.96)
-    static let solaceSafe = Color(red: 0.61, green: 0.84, blue: 0.76)
-    static let solaceAlert = Color(red: 0.91, green: 0.58, blue: 0.59)
-    static let solaceBlue = Color(red: 0.30, green: 0.60, blue: 0.79)
-    static let solaceBeige = Color(red: 0.95, green: 0.82, blue: 0.68)
-    static let solaceBrown = Color(red: 0.30, green: 0.25, blue: 0.23)
-    static let solaceClay = Color(red: 0.86, green: 0.66, blue: 0.61)
-    static let solaceLavender = Color(red: 0.78, green: 0.73, blue: 0.91)
-    static let solacePurple = Color(red: 0.48, green: 0.42, blue: 0.70)
-    static let solacePeach = Color(red: 0.96, green: 0.76, blue: 0.61)
-    static let solaceCoral = Color(red: 0.91, green: 0.58, blue: 0.59)
-    static let solaceTeal = Color(red: 0.38, green: 0.72, blue: 0.70)
+    static let lunaBackground = Color(red: 0.975, green: 0.948, blue: 0.885)
+    static let lunaPaper = Color(red: 0.995, green: 0.982, blue: 0.944)
+    static let lunaInk = Color(red: 0.08, green: 0.14, blue: 0.21)
+    static let lunaSignal = Color(red: 0.72, green: 0.88, blue: 0.96)
+    static let lunaSafe = Color(red: 0.61, green: 0.84, blue: 0.76)
+    static let lunaAlert = Color(red: 0.91, green: 0.58, blue: 0.59)
+    static let lunaBlue = Color(red: 0.30, green: 0.60, blue: 0.79)
+    static let lunaBeige = Color(red: 0.95, green: 0.82, blue: 0.68)
+    static let lunaBrown = Color(red: 0.30, green: 0.25, blue: 0.23)
+    static let lunaClay = Color(red: 0.86, green: 0.66, blue: 0.61)
+    static let lunaLavender = Color(red: 0.78, green: 0.73, blue: 0.91)
+    static let lunaPurple = Color(red: 0.48, green: 0.42, blue: 0.70)
+    static let lunaPeach = Color(red: 0.96, green: 0.76, blue: 0.61)
+    static let lunaCoral = Color(red: 0.91, green: 0.58, blue: 0.59)
+    static let lunaTeal = Color(red: 0.38, green: 0.72, blue: 0.70)
 }

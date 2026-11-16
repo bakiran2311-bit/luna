@@ -175,7 +175,7 @@ enum WellnessMetrics {
 
     static func tips(for schedule: DailySchedule?) -> [String] {
         guard let schedule else {
-            return ["Build a routine with your real activities first; solace will add practical break and water cues around it."]
+            return ["Build a routine with your real activities first; luna will add practical break and water cues around it."]
         }
         var tips: [String] = []
         if schedule.sleepHours < 7 { tips.append("Your planned sleep window is under 7 hours. If possible, move bedtime earlier and keep wake time consistent.") }
@@ -202,7 +202,7 @@ enum WellnessMetrics {
     }
 }
 
-struct SolaceAccount: Codable, Equatable {
+struct LunaAccount: Codable, Equatable {
     let email: String
     var name: String
     var provider: String
@@ -249,8 +249,8 @@ struct SolaceAccount: Codable, Equatable {
     }
 }
 
-private enum SolaceKeychain {
-    private static let service = "com.kiranbathala.solace"
+private enum LunaKeychain {
+    private static let service = "com.kiranbathala.luna"
 
     static func string(for key: String) -> String? {
         let query: [String: Any] = [
@@ -295,12 +295,12 @@ private enum SolaceKeychain {
 }
 
 final class AccountStore: ObservableObject {
-    @Published private(set) var activeAccount: SolaceAccount?
+    @Published private(set) var activeAccount: LunaAccount?
 
-    private let accountsKey = "solace.accounts.v2"
-    private let activeEmailKey = "solace.activeEmail.v2"
-    private let dailySignInKey = "solace.dailySignInByEmail.v1"
-    private var accounts: [String: SolaceAccount] = [:]
+    private let accountsKey = "luna.accounts.v2"
+    private let activeEmailKey = "luna.activeEmail.v2"
+    private let dailySignInKey = "luna.dailySignInByEmail.v1"
+    private var accounts: [String: LunaAccount] = [:]
 
     init() { load() }
 
@@ -316,7 +316,7 @@ final class AccountStore: ObservableObject {
         UserDefaults.standard.set(signIns, forKey: dailySignInKey)
     }
 
-    func account(for email: String) -> SolaceAccount? {
+    func account(for email: String) -> LunaAccount? {
         accounts[normalized(email)]
     }
 
@@ -325,13 +325,13 @@ final class AccountStore: ObservableObject {
         return digest == Self.digest(password)
     }
 
-    func activate(_ account: SolaceAccount) {
+    func activate(_ account: LunaAccount) {
         accounts[normalized(account.email)] = account
         activeAccount = account
         persist()
     }
 
-    func verifyAndActivate(_ account: SolaceAccount) {
+    func verifyAndActivate(_ account: LunaAccount) {
         var verified = account
         verified.verified = true
         activate(verified)
@@ -412,19 +412,19 @@ final class AccountStore: ObservableObject {
     func signOut() {
         activeAccount = nil
         UserDefaults.standard.removeObject(forKey: activeEmailKey)
-        SolaceKeychain.remove(activeEmailKey)
+        LunaKeychain.remove(activeEmailKey)
     }
 
     private func load() {
         if let data = UserDefaults.standard.data(forKey: accountsKey),
-           let decoded = try? JSONDecoder().decode([String: SolaceAccount].self, from: data) {
+           let decoded = try? JSONDecoder().decode([String: LunaAccount].self, from: data) {
             accounts = decoded
         }
-        let activeEmail = SolaceKeychain.string(for: activeEmailKey) ?? UserDefaults.standard.string(forKey: activeEmailKey)
+        let activeEmail = LunaKeychain.string(for: activeEmailKey) ?? UserDefaults.standard.string(forKey: activeEmailKey)
         if let activeEmail {
             activeAccount = accounts[normalized(activeEmail)]
             if activeAccount != nil {
-                SolaceKeychain.set(normalized(activeEmail), for: activeEmailKey)
+                LunaKeychain.set(normalized(activeEmail), for: activeEmailKey)
             }
         }
     }
@@ -436,7 +436,7 @@ final class AccountStore: ObservableObject {
         if let activeAccount {
             let email = normalized(activeAccount.email)
             UserDefaults.standard.set(email, forKey: activeEmailKey)
-            SolaceKeychain.set(email, for: activeEmailKey)
+            LunaKeychain.set(email, for: activeEmailKey)
         }
     }
 

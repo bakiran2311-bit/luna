@@ -1,9 +1,9 @@
-# solace eye-signal test matrix
+# luna eye-signal test matrix
 
 The deterministic tests are run from the repository root with:
 
-    swiftc ios/solace/BlinkEngine.swift ios/Tests/BlinkEngineTestRunner.swift \
-      -o /tmp/solace-blink-tests && /tmp/solace-blink-tests
+    swiftc ios/luna/BlinkEngine.swift ios/Tests/BlinkEngineTestRunner.swift \
+      -o /tmp/luna-blink-tests && /tmp/luna-blink-tests
 
 ## Completed locally
 

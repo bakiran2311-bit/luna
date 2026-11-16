@@ -1,15 +1,15 @@
-# solace iOS
+# luna iOS
 
-Open [`solace.xcodeproj`](./solace.xcodeproj) directly in Xcode. Select the `solace` scheme, choose your connected iPhone, then press Run. The target uses the unique bundle identifier `com.kiranbathala.solace` with automatic signing. The project file is the canonical entry point; the workspace is only a lightweight wrapper around it.
+Open [`luna.xcodeproj`](./luna.xcodeproj) directly in Xcode. Select the `luna` scheme, choose your connected iPhone, then press Run. The target uses the unique bundle identifier `com.kiranbathala.luna` with automatic signing. The project file is the canonical entry point; the workspace is only a lightweight wrapper around it.
 
-If Xcode is already open on an old window, use **File → Open…** and select `ios/solace.xcodeproj` again. Confirm your Apple ID/team under **Signing & Capabilities** if Xcode prompts once. The simulator can also be verified from Terminal:
+If Xcode is already open on an old window, use **File → Open…** and select `ios/luna.xcodeproj` again. Confirm your Apple ID/team under **Signing & Capabilities** if Xcode prompts once. The simulator can also be verified from Terminal:
 
 ```sh
-xcodebuild -workspace ios/solace.xcworkspace \
-  -scheme solace \
+xcodebuild -workspace ios/luna.xcworkspace \
+  -scheme luna \
   -destination 'platform=iOS Simulator,id=77507B50-6773-491E-87FD-A21E92733ABF' \
   -configuration Debug \
-  -derivedDataPath /tmp/solace-derived \
+  -derivedDataPath /tmp/luna-derived \
   CODE_SIGNING_ALLOWED=NO build
 ```
 

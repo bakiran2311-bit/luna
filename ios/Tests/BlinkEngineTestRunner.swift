@@ -34,7 +34,7 @@ private func send(_ engine: BlinkEngine, left: Double, right: Double, times: [Ti
 @main
 struct BlinkEngineTestRunner {
 static func main() {
-print("solace blink engine tests")
+print("luna blink engine tests")
 
 // Calibration: a short bilateral closure is a blink; one closed eye is only a partial closure.
 let calibration = EARCalibration.closedThreshold(openSamples: [0.34, 0.36, 0.35], closedSamples: [0.08, 0.10, 0.09])
