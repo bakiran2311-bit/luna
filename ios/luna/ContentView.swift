@@ -99,7 +99,13 @@ final class FocusSessionManager: ObservableObject {
         defaults.set(false, forKey: armedKey)
         defaults.set(false, forKey: lockedKey)
         defaults.set(false, forKey: "luna.warmFocusActive")
-        activeScreen().brightness = CGFloat(defaults.double(forKey: originalBrightnessKey))
+        // A stale armed flag (for example after a terminated process) must
+        // never force the display to black. Restore only a brightness value
+        // that this session actually captured.
+        if defaults.object(forKey: originalBrightnessKey) != nil {
+            activeScreen().brightness = CGFloat(defaults.double(forKey: originalBrightnessKey))
+            defaults.removeObject(forKey: originalBrightnessKey)
+        }
         completionToken = UUID()
         sendPausedNotification(reason: reason, seconds: seconds)
     }
@@ -1785,23 +1791,40 @@ final class BreathSession: NSObject, ObservableObject {
     private var lastTransition = Date.distantPast
     private var processedFrames = 0
     private var calibrationEnergy = 0.0
+    // Permission and AVAudioEngine setup are asynchronous. This token keeps a
+    // late permission callback from starting a session after the user stopped
+    // it, and prevents double taps from installing competing audio taps.
+    private let lifecycleLock = NSLock()
+    private var startInFlight = false
+    private var requestGeneration = 0
 
     func start() {
-        guard !isRunning else { return }
+        lifecycleLock.lock()
+        guard !isRunning, !startInFlight else {
+            lifecycleLock.unlock()
+            return
+        }
+        startInFlight = true
+        requestGeneration += 1
+        let generation = requestGeneration
+        lifecycleLock.unlock()
         quality = "requesting microphone…"
         AVAudioApplication.requestRecordPermission { [weak self] granted in
             DispatchQueue.main.async {
                 guard let self else { return }
+                guard self.isGenerationActive(generation) else { return }
                 guard granted else {
+                    self.clearStartRequest(generation)
                     self.quality = "microphone permission is needed for breath feedback"
                     return
                 }
-                self.configureAudio()
+                self.configureAudio(generation: generation)
             }
         }
     }
 
     func stop() {
+        invalidateStartRequest()
         processingQueue.async { [weak self] in
             guard let self else { return }
             if self.tapInstalled { self.engine.inputNode.removeTap(onBus: 0); self.tapInstalled = false }
@@ -1821,9 +1844,10 @@ final class BreathSession: NSObject, ObservableObject {
 
     deinit { stop() }
 
-    private func configureAudio() {
+    private func configureAudio(generation: Int) {
         processingQueue.async { [weak self] in
             guard let self else { return }
+            guard self.isGenerationActive(generation) else { return }
             do {
                 let audio = AVAudioSession.sharedInstance()
                 try audio.setCategory(.record, mode: .measurement, options: [.duckOthers, .allowBluetoothHFP])
@@ -1839,6 +1863,14 @@ final class BreathSession: NSObject, ObservableObject {
                 self.engine.prepare()
                 try self.engine.start()
                 DispatchQueue.main.async {
+                    guard self.claimStarted(generation) else {
+                        self.processingQueue.async {
+                            if self.tapInstalled { self.engine.inputNode.removeTap(onBus: 0); self.tapInstalled = false }
+                            self.engine.stop()
+                            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                        }
+                        return
+                    }
                     self.isRunning = true
                     self.phase = .settle
                     self.lastPhase = .settle
@@ -1851,12 +1883,40 @@ final class BreathSession: NSObject, ObservableObject {
                 }
             } catch {
                 DispatchQueue.main.async {
+                    guard self.clearStartRequest(generation) else { return }
                     self.isRunning = false
                     self.quality = "microphone could not start"
                     self.tip = "Check microphone access in Settings, then try again."
                 }
             }
         }
+    }
+
+    private func isGenerationActive(_ generation: Int) -> Bool {
+        lifecycleLock.lock()
+        defer { lifecycleLock.unlock() }
+        return startInFlight && requestGeneration == generation
+    }
+
+    @discardableResult
+    private func clearStartRequest(_ generation: Int) -> Bool {
+        lifecycleLock.lock()
+        defer { lifecycleLock.unlock() }
+        guard requestGeneration == generation else { return false }
+        startInFlight = false
+        return true
+    }
+
+    @discardableResult
+    private func claimStarted(_ generation: Int) -> Bool {
+        clearStartRequest(generation)
+    }
+
+    private func invalidateStartRequest() {
+        lifecycleLock.lock()
+        startInFlight = false
+        requestGeneration += 1
+        lifecycleLock.unlock()
     }
 
     private func process(buffer: AVAudioPCMBuffer) {
