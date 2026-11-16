@@ -1218,8 +1218,8 @@ struct FunctionalEyeCheckView: View {
                 }
             } else if camera.isComplete {
                 BlackButton(title: "continue to digit check", icon: "arrow.right") {
-                    resetClarity()
-                    stage = .acuityLeft
+                    camera.startCoverageVerification(target: .right)
+                    stage = .coverageLeft
                 }
             }
         }
@@ -1304,8 +1304,8 @@ struct FunctionalEyeCheckView: View {
             Text("Now cover your LEFT eye without pressing it.")
                 .font(.system(size: 15, weight: .bold, design: .monospaced))
             BlackButton(title: "start right eye", icon: "arrow.right") {
-                resetClarity()
-                stage = .acuityRight
+                camera.startCoverageVerification(target: .left)
+                stage = .coverageRight
             }
         }
     }
@@ -2567,7 +2567,7 @@ struct WellnessView: View {
                         }
                     }
                 }
-                FoodSupportCard(score: nil)
+                FoodSupportCard(score: store.todayEyeScore)
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("food ideas with vitamins A & C", systemImage: "leaf").font(.system(size: 17, weight: .medium))
