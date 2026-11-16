@@ -1,4 +1,4 @@
-# luna iOS
+# Luna iOS
 
 Open [`luna.xcodeproj`](./luna.xcodeproj) directly in Xcode. Select the `luna` scheme, choose your connected iPhone, then press Run. The target uses the unique bundle identifier `com.kiranbathala.luna` with automatic signing. The project file is the canonical entry point; the workspace is only a lightweight wrapper around it.
 

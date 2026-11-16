@@ -423,7 +423,7 @@ struct AuthView: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
         }
-        .alert("luna", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
+        .alert("Luna", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
             Button("ok") { alertMessage = nil }
         } message: {
             Text(alertMessage ?? "")
@@ -2230,7 +2230,13 @@ struct MovementResetView: View {
             .padding(16).liquidGlass(16)
             RetroProgressBar(value: Double(120 - seconds), total: 120, color: .lunaBlue)
             Spacer()
-            BlackButton(title: isRunning ? "pause reset" : "start reset", icon: isRunning ? "pause.fill" : "play.fill") { isRunning.toggle() }
+            BlackButton(title: isRunning ? "pause reset" : "start reset", icon: isRunning ? "pause.fill" : "play.fill") {
+                if seconds == 0 {
+                    seconds = 120
+                    phase = 0
+                }
+                isRunning.toggle()
+            }
             BlackButton(title: "done") { dismiss() }
         }
         .task {
